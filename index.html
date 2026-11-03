@@ -460,14 +460,13 @@ function render(){
   // 定刻間隔（時間）
   let intervalH=3;
   if(ns&&ps)intervalH=Math.max(1.5,Math.min(5,(ns-ps)/3600000));
-  // 今回の入力欄に自動入力する直近30分の母乳・搾乳（残量計算からは除外して二重計算を防ぐ）
+  // 直近30分の母乳・搾乳：胃内容に含める（入力欄には入れない）
   const rbAuto=recs.filter(r=>r.type==='BreastFeeding'&&now-r.t<=30*60000&&bfMinutes(r)>0).pop();
   const reAuto=recs.filter(r=>r.type==='ExpressedBreastMilk'&&now-r.t<=30*60000&&val(r)!=null).pop();
-  const excl=new Set([rbAuto&&rbAuto.event_id,reAuto&&reAuto.event_id].filter(Boolean));
   const eqOf=r=>r.type==='BreastFeeding'?Math.min(bfMinutes(r),Number(S.bfCap||20))*Number(S.coef||0):(val(r)||0);
   const halfOf=r=>(r.type==='Formula')?Number(S.halfFormula||65):Number(S.halfBreast||47); // 胃内容の半減期（分）
   // 胃内容シミュレーション：各授乳の量が種類ごとの半減期で指数的に減る
-  const ev=feeds.filter(r=>now-r.t<=8*3600000&&!excl.has(r.event_id));
+  const ev=feeds.filter(r=>now-r.t<=8*3600000);
   function reserveAt(t,extraNow){
     let res=0;
     for(const r of ev){if(r.t<=t){res+=eqOf(r)*Math.pow(0.5,((t-r.t)/60000)/halfOf(r));}}
@@ -545,11 +544,11 @@ function render(){
   if(UI.mode===null)UI.mode=night?'B':'A';
   let bfAuto='',ebmAuto='';
   if(UI.bfMin===null){
-    if(rbAuto){UI.bfMin=bfMinutes(rbAuto);bfAuto=fmtHM(rbAuto.t)+'の記録から自動入力';}
+    if(rbAuto){UI.bfMin=0;bfAuto=fmtHM(rbAuto.t)+'の母乳'+bfMinutes(rbAuto)+'分は胃内容に反映済み。これから追加であげる分だけ入力';}
     else UI.bfMin=Number(S.bfDefault||15);
   }
   if(UI.ebm===null){
-    if(reAuto){UI.ebm=val(reAuto);ebmAuto=fmtHM(reAuto.t)+'の記録から自動入力';}else UI.ebm=0;
+    UI.ebm=0;if(reAuto){ebmAuto=fmtHM(reAuto.t)+'の搾乳'+val(reAuto)+'mlは胃内容に反映済み';}
     UI.ebmB=UI.ebm;
   }
   $('bfAuto').textContent=bfAuto;$('ebmAuto').textContent=ebmAuto;
@@ -578,7 +577,7 @@ function render(){
   let calc='基準 '+base0+'ml（'+baseInfo(days).how+'）';
   calc+=' × 空腹度'+Math.round(hungerNow*100)+'%（胃内容の推定'+Math.round(resNow)+'ml。'+(lastEv||'授乳記録なし')+'。半減期 母乳'+S.halfBreast+'分/ミルク'+S.halfFormula+'分）';
   if(UI.mode==='A')calc+='、母乳1分≒'+S.coef+'ml';
-  let out=UI.outManual!=null?UI.outManual:autoOut;
+  let out=UI.outManual!=null?UI.outManual:(enough?0:autoOut);
   $('outMl').value=out;$('manualTag').classList.toggle('hidden',UI.outManual==null);
   let lab='',bigv='';
   if(UI.mode==='A'){lab='母乳'+UI.bfMin+'分'+(ebmNow>0?' + 搾乳'+ebmNow+'ml':'')+' → 粉ミルク';}
