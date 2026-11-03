@@ -99,7 +99,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">ミルク量</div>
+    <div class="t" id="hTitle">ミルク量 <span class="muted" style="font-weight:400;font-size:11px">v9</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -256,7 +256,7 @@ table.st tr.cur td{background:var(--accent-soft)}
     <thead><tr><th>日齢〜</th><th>ml/kg/日</th><th>回/日</th><th>最小</th><th>最大</th><th>定刻</th></tr></thead>
     <tbody></tbody>
   </table>
-  <div class="note">1回量＝体重kg×ml/kg/日÷回数（最小〜最大に丸め）。体重不明なら最小と最大の中央。ml/kg/日の初期値はNHS・豪州ガイドの標準値150（5日〜3ヶ月。正常範囲150〜200、AAPは165相当）、120（3〜6ヶ月）、100（6〜12ヶ月）。体重増が1日20g未満なら150→170に上げる。最小〜最大は明治調乳量表とAAPの月齢別レンジ。1日上限は体重×200ml（最大960）。定刻は「2,5,8,…」の形式。</div>
+  <div class="note">1回量＝体重kg×ml/kg/日÷回数（最小〜最大に丸め）。体重不明なら最小と最大の中央。ml/kg/日の初期値は175（〜3ヶ月）・140（3ヶ月〜）。ガイドの標準値は150（5日〜3ヶ月。正常範囲150〜200、AAPは165相当）、120（3〜6ヶ月）、100（6〜12ヶ月）で、文乃の実績に合わせて上寄りに設定。最小〜最大は明治調乳量表とAAPの月齢別レンジ。1日上限は体重×200ml（最大960）。定刻は「2,5,8,…」の形式。</div>
   <div class="actions"><button class="btn sm" onclick="resetStages()">表を初期値に戻す</button></div>
 
   <h3>体重（計算に使用）</h3>
@@ -293,14 +293,14 @@ table.st tr.cur td{background:var(--accent-soft)}
 const LS_KEY='milkapp.settings.v1', LS_FEED='milkapp.feedcache.v1';
 const DEFAULT_STAGES=[
   // fromDay, ml/kg/day, feeds/day, per-feed min/max (ml), slot hours
-  {from:0,  mlkg:150, n:8, min:40,  max:80,  slots:'2,5,8,11,14,17,20,23'},
-  {from:14, mlkg:150, n:8, min:60,  max:120, slots:'2,5,8,11,14,17,20,23'},
-  {from:30, mlkg:150, n:6, min:90,  max:160, slots:'2,6,10,14,18,22'},
-  {from:60, mlkg:150, n:6, min:120, max:180, slots:'2,6,10,14,18,22'},
-  {from:90, mlkg:120, n:5, min:150, max:220, slots:'6,10,14,18,22'},
-  {from:150,mlkg:120, n:5, min:150, max:220, slots:'6,10,14,18,22'},
-  {from:180,mlkg:100, n:5, min:150, max:220, slots:'6,10,14,18,22'},
-  {from:270,mlkg:100, n:5, min:150, max:220, slots:'6,10,14,18,22'},
+  {from:0,  mlkg:175, n:8, min:40,  max:80,  slots:'2,5,8,11,14,17,20,23'},
+  {from:14, mlkg:175, n:8, min:60,  max:120, slots:'2,5,8,11,14,17,20,23'},
+  {from:30, mlkg:175, n:6, min:90,  max:160, slots:'2,6,10,14,18,22'},
+  {from:60, mlkg:175, n:6, min:120, max:180, slots:'2,6,10,14,18,22'},
+  {from:90, mlkg:140, n:5, min:150, max:220, slots:'6,10,14,18,22'},
+  {from:150,mlkg:140, n:5, min:150, max:220, slots:'6,10,14,18,22'},
+  {from:180,mlkg:140, n:5, min:150, max:220, slots:'6,10,14,18,22'},
+  {from:270,mlkg:140, n:5, min:150, max:220, slots:'6,10,14,18,22'},
 ];
 const DEFAULTS={
   feedUrl:'', birth:'2026-10-20', demo:false,
@@ -371,7 +371,7 @@ async function fetchFeed(force){
       if(j.schema_version!==1){lastErr='未対応のデータ形式 schema_version='+j.schema_version;}
       else{FEED=j;FEEDAT=Date.now();lastErr='';try{localStorage.setItem(LS_FEED,JSON.stringify({at:FEEDAT,data:j}));}catch(e){}}
     }
-  }catch(e){lastErr='通信できない。電波を確認。'+(FEED?'最後に取得したデータを表示中。':'');}
+  }catch(e){lastErr='取得できない。電波か、1分以内に何度も取得して制限された可能性。1分待って↻を1回。'+(FEED?'最後に取得したデータを表示中。':'');}
   $('btnRefresh').textContent='↻';
   render();
 }
@@ -658,7 +658,7 @@ $('outMl').addEventListener('input',e=>{UI.outManual=Math.max(0,Number(e.target.
 function renderKeep(el){const v=el.value;render();el.value=v;}
 $('tabA').onclick=()=>{UI.mode='A';UI.outManual=null;render();};
 $('tabB').onclick=()=>{UI.mode='B';UI.outManual=null;render();};
-$('btnRefresh').onclick=()=>fetchFeed(true);
+$('btnRefresh').onclick=()=>{const w=60000-(Date.now()-FEEDAT);if(!S.demo&&w>0&&FEED){lastErr='前回取得から60秒未満。あと'+Math.ceil(w/1000)+'秒。';render();setTimeout(()=>{lastErr='';render();},2000);return;}fetchFeed(true);};
 $('btnSettings').onclick=openSettings;
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')fetchFeed(false);});
 setInterval(()=>{if(document.visibilityState==='visible')render();},30000);
@@ -690,7 +690,7 @@ function readStageTable(){
 function resetStages(){renderStageTable(DEFAULT_STAGES.map(s=>({...s})));}
 function closeSettings(save){
   if(save){
-    const url=$('sFeed').value.trim();
+    const url=$('sFeed').value.trim();const prevUrl=S.feedUrl;
     if(url&&!/^https:\/\/feed\.piyolog\.com\/v1\/feed\//.test(url)){alert('フィードURLの形式が違う。https://feed.piyolog.com/v1/feed/… を貼る。');return;}
     S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;
     S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
@@ -698,8 +698,8 @@ function closeSettings(save){
     S.coef=Number($('sCoef').value);S.offset=Number($('sOffset').value)||0;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.halfBreast=Number($('sHalfB').value)||47;
     {let w=$('sWkg').value===''?null:Number($('sWkg').value);if(w&&w>50)w=w/1000;S.wkg=w;}S.wdate=$('sWdate').value;
     const stg=readStageTable();if(stg.length)S.stages=stg;
-    saveSettings();UI.autoKey='';FEEDAT=0;
-    $('sheet').classList.remove('open');fetchFeed(true);return;
+    saveSettings();UI.autoKey='';
+    $('sheet').classList.remove('open');fetchFeed(url!==prevUrl||S.demo);return;
   }
   $('sheet').classList.remove('open');render();
 }
@@ -727,7 +727,7 @@ function importFromHash(){
 importFromHash();
 loadFeedCache();
 render();
-fetchFeed(true);
+fetchFeed(false);
 </script>
 </body>
 </html>
