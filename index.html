@@ -441,40 +441,37 @@ function render(){
   $('nextSlot').textContent=ns?fmtHM(ns):'—';
   $('nextIn').textContent=ns?fmtIn(ns-now):'';
   const minToNext=ns?(ns-now)/60000:0;
-  const W=Number(S.window||90)*60000;
   const night=inNight(now.getHours());
-  // 今回の入力欄に自動入力する直近30分の母乳・搾乳（窓の合計からは除外して二重計算を防ぐ）
+  const base0=baseFormulaOnly(days);
+  // 定刻間隔（時間）と消化レート：基準量を1間隔で使い切る前提
+  let intervalH=3;
+  if(ns&&ps)intervalH=Math.max(1.5,Math.min(5,(ns-ps)/3600000));
+  const rate=base0/intervalH; // ml/時
+  // 今回の入力欄に自動入力する直近30分の母乳・搾乳（残量計算からは除外して二重計算を防ぐ）
   const rbAuto=recs.filter(r=>r.type==='BreastFeeding'&&now-r.t<=30*60000&&bfMinutes(r)>0).pop();
   const reAuto=recs.filter(r=>r.type==='ExpressedBreastMilk'&&now-r.t<=30*60000&&val(r)!=null).pop();
   const excl=new Set([rbAuto&&rbAuto.event_id,reAuto&&reAuto.event_id].filter(Boolean));
-  const base0=baseFormulaOnly(days);
-  const givenFor=(slot)=>{ // slotのW分前〜今までに飲んだ量（ミルク換算）
-    const ws=new Date(slot-W);
-    const a=feeds.filter(r=>r.t>=ws&&r.t<=now&&!excl.has(r.event_id));
-    const f=a.filter(r=>r.type==='Formula').reduce((x,r)=>x+(val(r)||0),0);
-    const e=a.filter(r=>r.type==='ExpressedBreastMilk').reduce((x,r)=>x+(val(r)||0),0);
-    const m=a.filter(r=>r.type==='BreastFeeding').reduce((x,r)=>x+Math.min(bfMinutes(r),Number(S.bfCap||20)),0);
-    return {eq:f+e+m*Number(S.coef||0),ws};
-  };
-  const doneThr=Math.max(10,base0*0.25);
-  const gPrev=ps?givenFor(ps):{eq:0,ws:now};
-  const prevDone=!ps||(base0-gPrev.eq)<=doneThr;
-  let target,given,isPre,slotDone;
-  if(!prevDone){ // 直前の定刻分がまだ → 今が定刻
-    target=ps;given=gPrev;isPre=false;slotDone=false;
-  }else{
-    target=ns;given=givenFor(ns);
-    slotDone=(base0-given.eq)<=doneThr;
-    const nearSlot=now>=ns-Number(S.preMin)*60000;
-    isPre=slotDone||!nearSlot;
+  const eqOf=r=>r.type==='BreastFeeding'?Math.min(bfMinutes(r),Number(S.bfCap||20))*Number(S.coef||0):(val(r)||0);
+  // 残量シミュレーション：直近8時間の授乳を時系列に足し、間隔あたり基準量のペースで減らす
+  const ev=feeds.filter(r=>now-r.t<=8*3600000&&!excl.has(r.event_id));
+  function reserveAt(t,extraNow){
+    let res=0,cur=new Date(now-8*3600000);
+    const list=ev.filter(r=>r.t<=t).slice();
+    if(extraNow&&t>now)list.push({t:now,eq:extraNow});
+    for(const r of list){res=Math.max(0,res-rate*((r.t-cur)/3600000));res=Math.min(base0,res+(r.eq!=null?r.eq:eqOf(r)));cur=r.t;}
+    return Math.max(0,res-rate*((t-cur)/3600000));
   }
-  const remaining=Math.max(0,base0-given.eq);
-  const winStart=given.ws;
-  let badge='定刻';
-  if(isPre)badge='定刻前';
-  else if(!prevDone&&now-ps>Number(S.preMin)*60000)badge=gPrev.eq>0?'飲み残し分':'定刻（遅れ）';
+  const resNow=reserveAt(now);
+  const needNow=Math.max(0,base0-resNow);
+  const doneThr=Math.max(10,base0*0.25);
+  const nearSlot=(ps&&now-ps<=Number(S.preMin)*60000)||(ns&&ns-now<=Number(S.preMin)*60000);
+  const enough=needNow<=doneThr;
+  const isPre=enough||(!nearSlot&&needNow<base0*0.75);
+  let badge=enough?'足りている':(nearSlot?'定刻':(needNow>=base0*0.75?'定刻（遅れ）':'不足分'));
   $('modeBadge').textContent=badge;
   $('modeBadge').classList.toggle('pre',isPre);
+  // 残量の内訳（直近の授乳）
+  const lastEv=ev.slice(-3).map(r=>fmtHM(r.t)+' '+describe(r)).join('、');
 
   // 夜の追加回数
   let extra=0;
@@ -485,10 +482,9 @@ function render(){
   }
 
   // タブ初期選択
-  const autoKey=days+'|'+(isPre?1:0)+'|'+(night?1:0)+'|'+(last?last.event_id:'');
+  const autoKey=days+'|'+(night?1:0)+'|'+(last?last.event_id:'')+'|'+Math.floor(now/600000);
   if(UI.autoKey!==autoKey){UI.autoKey=autoKey;UI.mode=null;UI.bfMin=null;UI.ebm=null;UI.ebmB=null;UI.outManual=null;}
   if(UI.mode===null)UI.mode=night?'B':'A';
-  // 母乳・搾乳の自動入力（直近30分）
   let bfAuto='',ebmAuto='';
   if(UI.bfMin===null){
     if(rbAuto){UI.bfMin=bfMinutes(rbAuto);bfAuto=fmtHM(rbAuto.t)+'の記録から自動入力';}
@@ -500,16 +496,14 @@ function render(){
   }
   $('bfAuto').textContent=bfAuto;$('ebmAuto').textContent=ebmAuto;
 
-  // 定刻前の手順
+  // 手順・状況
   const ps_=$('preSteps');
-  const doneTxt=slotDone?(fmtHM(target)+'の分は済み（'+fmtHM(winStart)+'以降に'+Math.round(given.eq)+'ml相当）。'):(ps&&prevDone&&gPrev.eq>0?(fmtHM(ps)+'の分は済み。'):'');
-  if(isPre){
+  if(enough){
     ps_.classList.remove('hidden');
-    if(night){
-      ps_.innerHTML=doneTxt+'泣いたら <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けばミルク少量。<br>今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回'+(extra>=Number(S.extraMax)?'　→ <b>空腹サインが続くなら与える。毎晩2回以上なら基準が足りない。設定の増減で+10</b>':'');
-    }else{
-      ps_.innerHTML=doneTxt+'泣いたら <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けば<b>母乳</b>。ミルクは足さない。';
-    }
+    ps_.innerHTML='残り約'+Math.round(resNow)+'ml分が体に残っている推定。泣いたら <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けば'+(night?'ミルク少量':'<b>母乳</b>')+'。'+(night?'<br>今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回'+(extra>=Number(S.extraMax)?'　→ <b>空腹サインが続くなら与える。毎晩2回以上なら基準が足りない。設定の増減で+10</b>':''):'');
+  }else if(isPre){
+    ps_.classList.remove('hidden');
+    ps_.innerHTML='不足分 約<b>'+round10(needNow)+'ml</b>（ミルク換算）。次の定刻 <b>'+(ns?fmtHM(ns):'—')+'</b> まで'+(ns?fmtIn(ns-now).replace('あと',''):'')+'。'+(night?'今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回':'昼は<b>母乳</b>で補ってもよい。')+(ns?'<br>今あげれば '+fmtHM(ns)+' は基準より少なくなる（下の次回欄）。':'');
   }else ps_.classList.add('hidden');
 
   // タブ描画
@@ -519,27 +513,20 @@ function render(){
 
   // 推奨
   const ebmNow=UI.mode==='A'?UI.ebm:UI.ebmB;
-  let baseNow, calc;
-  if(isPre){
-    baseNow=Math.min(Number(S.preMl),slotDone?Number(S.preMl):remaining);
-    calc='定刻前の基準 '+S.preMl+'ml';
-  }else{
-    baseNow=remaining;
-    calc='基準 '+base0+'ml（'+baseInfo(days).how+'）'+(given.eq>0?' − '+fmtHM(winStart)+'以降の'+Math.round(given.eq)+'ml相当':'')+'';
-  }
-  let ml=baseNow;
+  let ml=needNow;
   if(UI.mode==='A')ml-=Math.min(Number(UI.bfMin||0),Number(S.bfCap||20))*Number(S.coef||0);
   ml-=Number(ebmNow||0);
   const autoOut=round10(ml);
+  let calc='基準 '+base0+'ml（'+baseInfo(days).how+'）';
+  if(resNow>0)calc+=' − 残り推定'+Math.round(resNow)+'ml（'+lastEv+' を'+intervalH+'時間で消化と仮定）';
   if(UI.mode==='A')calc+='、母乳1分≒'+S.coef+'ml';
-  const bfOnly=isPre&&!night&&UI.mode==='A';
-  let out=UI.outManual!=null?UI.outManual:(bfOnly?0:autoOut);
+  let out=UI.outManual!=null?UI.outManual:autoOut;
   $('outMl').value=out;$('manualTag').classList.toggle('hidden',UI.outManual==null);
   let lab='',bigv='';
-  if(UI.mode==='A'){lab=bfOnly?'粉ミルクは足さない':('母乳'+UI.bfMin+'分'+(ebmNow>0?' + 搾乳'+ebmNow+'ml':'')+' → 粉ミルク');}
+  if(UI.mode==='A'){lab='母乳'+UI.bfMin+'分'+(ebmNow>0?' + 搾乳'+ebmNow+'ml':'')+' → 粉ミルク';}
   else{lab=(ebmNow>0?'搾乳'+ebmNow+'ml → 粉ミルク':'粉ミルク');}
-  if(bfOnly&&UI.outManual==null)bigv='<span style="color:var(--accent)">母乳</span><small>のみ</small>';
-  else if(out===0&&!isPre)bigv='<span style="color:var(--accent)">0</span><small>ml　この定刻分は済み</small>';
+  if(out===0&&enough&&UI.outManual==null)bigv='<span style="color:var(--accent)">0</span><small>ml　足りている</small>';
+  else if(out===0&&UI.mode==='A'&&UI.outManual==null)bigv='<span style="color:var(--accent)">母乳</span><small>で足りる</small>';
   else bigv='<span style="color:var(--accent)">'+out+'</span><small>ml</small>';
   $('bigLabel').textContent=lab;$('bigOut').innerHTML=bigv;
   $('calcNote').textContent=calc;
@@ -547,9 +534,18 @@ function render(){
   // 次回
   if(ns){
     const nNight=inNight(ns.getHours());const nDays=ageDays(ns);const nb=baseFormulaOnly(nDays);
+    const resNsNo=reserveAt(ns);              // 今あげない場合の残量
+    const giveNow=Math.max(0,round10(needNow));
+    const resNsYes=reserveAt(ns,giveNow);     // 今、不足分をあげた場合
+    const needNo=Math.max(0,round10(nb-resNsNo)), needYes=Math.max(0,round10(nb-resNsYes));
     $('nxTime').textContent=fmtHM(ns);
-    if(nNight){$('nxWhat').innerHTML='ミルク '+nb+'ml<small>搾乳があれば先に、残りをミルク</small>';}
-    else{$('nxWhat').innerHTML='母乳 → ミルク '+round10(nb-Number(S.bfDefault||15)*Number(S.coef))+'ml<small>母乳'+(S.bfDefault||15)+'分の場合。長ければ減らす</small>';}
+    const bfd=Number(S.bfDefault||15), bfEq=round10(bfd*Number(S.coef));
+    const fmtN=(n)=>nNight?('ミルク '+n+'ml'):(n-bfEq<=0?'母乳のみで足りる見込み':'母乳 → ミルク '+(n-bfEq)+'ml');
+    if(giveNow>0&&!enough){
+      $('nxWhat').innerHTML=fmtN(needYes)+'<small>今'+giveNow+'mlあげた場合。あげなければ '+fmtN(needNo)+'</small>';
+    }else{
+      $('nxWhat').innerHTML=fmtN(needNo)+'<small>'+(nNight?'搾乳があれば先に、残りをミルク':'母乳'+bfd+'分の場合。長ければ減らす')+'</small>';
+    }
     const ns2=slotTimes(now,parseSlots(stageFor(nDays).slots)).find(t=>t>ns);
     $('nxNote').textContent=(ns2?'その次 '+fmtHM(ns2)+'。':'')+(nDays!==days?'日齢が変わり基準 '+nb+'ml。':'');
   }
