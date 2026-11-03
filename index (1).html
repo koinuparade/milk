@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ミルク">
+<meta name="theme-color" content="#111318">
+<title>ミルク量</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --bg:#f6f4ef;--card:#ffffff;--text:#1b1d22;--muted:#6b7079;--line:#e5e2db;
+  --accent:#d9822b;--accent-soft:#fbe9d6;--warn:#c0392b;--warn-soft:#fde3e0;--ok:#2e8b57;--ok-soft:#e1f3e8;
+  --tab:#efece5;--tab-on:#1b1d22;--tab-on-text:#fff;--input:#faf8f4;
+}
+html[data-theme="dark"]{
+  --bg:#111318;--card:#1b1e26;--text:#eceef2;--muted:#9aa0ab;--line:#2a2e38;
+  --accent:#f2a93b;--accent-soft:#3a2d18;--warn:#ff6b5b;--warn-soft:#3b1f1c;--ok:#5fcf8a;--ok-soft:#1c3327;
+  --tab:#262a34;--tab-on:#f2a93b;--tab-on-text:#111;--input:#141720;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:16px;line-height:1.4}
+body{padding:max(10px,env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 10px}
+header .t{font-weight:700;font-size:15px}
+header .s{color:var(--muted);font-size:13px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:8px 12px;font-size:14px;font-weight:600}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#111}
+.btn.sm{padding:6px 10px;font-size:13px}
+.icon{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px}
+.card h2{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.alert{border-radius:12px;padding:10px 12px;margin-bottom:10px;font-weight:600;font-size:14px}
+.alert.warn{background:var(--warn-soft);color:var(--warn)}
+.alert.info{background:var(--accent-soft);color:var(--text)}
+.alert.ok{background:var(--ok-soft);color:var(--text)}
+.bigLabel{font-size:16px;font-weight:700;color:var(--muted);margin-top:10px}
+.big{font-size:56px;font-weight:800;line-height:1;letter-spacing:-.02em;margin:4px 0 2px}
+.big small{font-size:22px;font-weight:700;margin-left:4px}
+.mode{display:inline-block;font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--text)}
+.mode.pre{background:var(--warn-soft);color:var(--warn)}
+.tabs{display:flex;background:var(--tab);border-radius:12px;padding:3px;margin:10px 0}
+.tabs button{flex:1;border:0;background:transparent;color:var(--text);padding:10px 4px;border-radius:10px;font-size:14px;font-weight:700}
+.tabs button.on{background:var(--tab-on);color:var(--tab-on-text)}
+.field{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.field:first-of-type{border-top:0}
+.field label{font-size:15px}
+.field .sub{display:block;font-size:12px;color:var(--muted)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:22px;font-weight:700}
+.stepper input{width:70px;height:44px;text-align:center;font-size:20px;font-weight:700;border:1px solid var(--line);border-radius:12px;background:var(--input);color:var(--text)}
+.stepper .u{font-size:14px;color:var(--muted);width:24px}
+.result{display:flex;align-items:baseline;justify-content:space-between;margin-top:8px}
+.result .lab{color:var(--muted);font-size:14px}
+.manual{font-size:12px;color:var(--warn);font-weight:700;margin-left:6px}
+.steps{font-size:15px;line-height:1.6;margin:6px 0}
+.steps b{color:var(--accent)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.kv div{font-size:14px}
+.kv .v{font-size:20px;font-weight:800}
+.kv .k{color:var(--muted);font-size:12px}
+.bar{height:8px;background:var(--tab);border-radius:999px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.bar i.over{background:var(--warn)}
+ul.tl{list-style:none;margin:0;padding:0}
+ul.tl li{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+ul.tl li:first-child{border-top:0}
+ul.tl .tm{width:48px;color:var(--muted);font-variant-numeric:tabular-nums}
+ul.tl .ty{flex:1}
+ul.tl .am{font-weight:700}
+.muted{color:var(--muted);font-size:13px}
+.note{font-size:12px;color:var(--muted);margin-top:6px}
+.next{display:flex;justify-content:space-between;align-items:center}
+.next .nt{font-size:28px;font-weight:800}
+.next .nv{font-size:22px;font-weight:800;text-align:right}
+.next .nv small{display:block;font-size:12px;color:var(--muted);font-weight:600}
+/* settings */
+.sheet{position:fixed;inset:0;background:var(--bg);overflow:auto;padding:max(10px,env(safe-area-inset-top)) 12px 40px;display:none;z-index:10}
+.sheet.open{display:block}
+.sheet h1{font-size:18px;margin:6px 0 12px}
+.sheet h3{font-size:13px;color:var(--muted);margin:16px 0 6px}
+.sheet label{display:block;font-size:14px;margin:10px 0 4px}
+.sheet input[type=text],.sheet input[type=url],.sheet input[type=number],.sheet input[type=date],.sheet textarea,.sheet select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--input);color:var(--text);font-size:16px}
+.sheet textarea{min-height:60px;font-family:ui-monospace,monospace;font-size:13px}
+table.st{width:100%;border-collapse:collapse;font-size:13px}
+table.st th,table.st td{padding:4px 2px;border-bottom:1px solid var(--line);text-align:center}
+table.st input{width:100%;padding:6px 2px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--input);color:var(--text);font-size:14px}
+table.st tr.cur td{background:var(--accent-soft)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.hidden{display:none}
+.setup{text-align:center;padding:30px 10px}
+.setup p{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="t" id="hTitle">ミルク量</div>
+    <div class="s" id="hSub"></div>
+  </div>
+  <div style="display:flex;gap:6px">
+    <button class="btn icon" id="btnRefresh" title="更新">↻</button>
+    <button class="btn icon" id="btnSettings" title="設定">⚙</button>
+  </div>
+</header>
+
+<div id="alerts"></div>
+
+<div id="setup" class="card setup hidden">
+  <p><b>初期設定</b></p>
+  <p>ぴよログの「設定 → データフィード」で作成したURLを設定画面に貼り付けてください。</p>
+  <button class="btn pri" onclick="openSettings()">設定を開く</button>
+</div>
+
+<div id="main" class="hidden">
+  <div class="card">
+    <div class="row"><h2>前回</h2><span class="muted" id="lastAgo"></span></div>
+    <div class="row">
+      <div><span style="font-size:22px;font-weight:800" id="lastWhat">—</span></div>
+      <div class="muted" id="lastTime"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <h2 style="margin:0">次の定刻</h2>
+      <div><b id="nextSlot">—</b> <span class="muted" id="nextIn"></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <h2>今あげるなら</h2>
+      <span class="mode" id="modeBadge">定刻</span>
+    </div>
+    <div id="preSteps" class="steps hidden"></div>
+    <div class="tabs">
+      <button id="tabA" class="on">母乳＋ミルク</button>
+      <button id="tabB">ミルクのみ</button>
+    </div>
+    <div id="paneA">
+      <div class="field">
+        <label>母乳<span class="sub" id="bfAuto"></span></label>
+        <div class="stepper"><button data-step="bf" data-d="-5">−</button><input id="bfMin" type="number" inputmode="numeric" min="0" step="1"><span class="u">分</span><button data-step="bf" data-d="5">＋</button></div>
+      </div>
+      <div class="field">
+        <label>搾乳<span class="sub" id="ebmAuto"></span></label>
+        <div class="stepper"><button data-step="ebm" data-d="-10">−</button><input id="ebmMl" type="number" inputmode="numeric" min="0" step="10"><span class="u">ml</span><button data-step="ebm" data-d="10">＋</button></div>
+      </div>
+    </div>
+    <div id="paneB" class="hidden">
+      <div class="field">
+        <label>搾乳<span class="sub">あれば先に</span></label>
+        <div class="stepper"><button data-step="ebmB" data-d="-10">−</button><input id="ebmMlB" type="number" inputmode="numeric" min="0" step="10"><span class="u">ml</span><button data-step="ebmB" data-d="10">＋</button></div>
+      </div>
+    </div>
+    <div class="result">
+      <span class="lab">粉ミルク<span class="manual hidden" id="manualTag">手動</span></span>
+      <div class="stepper"><button data-step="out" data-d="-10">−</button><input id="outMl" type="number" inputmode="numeric" min="0" step="10"><span class="u">ml</span><button data-step="out" data-d="10">＋</button></div>
+    </div>
+    <div class="bigLabel" id="bigLabel"></div>
+    <div class="big" id="bigOut">—</div>
+    <div class="note" id="calcNote"></div>
+  </div>
+
+  <div class="card">
+    <h2>次回</h2>
+    <div class="next">
+      <div class="nt" id="nxTime">—</div>
+      <div class="nv" id="nxWhat">—</div>
+    </div>
+    <div class="note" id="nxNote"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><h2>今日</h2><span class="muted" id="todayLabel"></span></div>
+    <div class="row"><span>粉ミルク <b id="tdFormula">0</b> ml</span><span class="muted">上限 <span id="tdCap">—</span> ml</span></div>
+    <div class="bar"><i id="tdBar" style="width:0%"></i></div>
+    <div class="kv" style="margin-top:8px">
+      <div><div class="k">搾乳</div><div class="v" id="tdEbm">0<small style="font-size:12px"> ml</small></div></div>
+      <div><div class="k">母乳</div><div class="v" id="tdBf">0<small style="font-size:12px"> 回</small></div></div>
+      <div><div class="k">吐き戻し</div><div class="v" id="tdVomit">0<small style="font-size:12px"> 回</small></div></div>
+      <div><div class="k">残り定刻</div><div class="v" id="tdLeft">—</div></div>
+    </div>
+    <div class="note" id="tdNote"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><h2>直近24時間</h2><span class="muted" id="feedGen"></span></div>
+    <ul class="tl" id="timeline"></ul>
+  </div>
+
+  <div class="note" style="text-align:center">母乳の分→ml換算は推定。量の判断は体重増（目安 1日25〜30g）で。<br>飲ませたらぴよログに記録。</div>
+</div>
+
+<!-- settings -->
+<div class="sheet" id="sheet">
+  <div class="row"><h1>設定</h1><button class="btn" onclick="closeSettings(false)">閉じる</button></div>
+
+  <h3>データ</h3>
+  <label>ぴよログ データフィードURL</label>
+  <input type="url" id="sFeed" placeholder="https://feed.piyolog.com/v1/feed/24h/…/…" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <div class="note">この端末内にのみ保存。共有リンクには含まれない。</div>
+  <label>生年月日</label>
+  <input type="date" id="sBirth">
+  <label><input type="checkbox" id="sDemo"> デモデータで動作確認（フィードを使わない）</label>
+
+  <h3>時間帯</h3>
+  <div class="grid2">
+    <div><label>ミルクのみの時間帯 開始</label><input type="number" id="sNightFrom" min="0" max="23"></div>
+    <div><label>終了</label><input type="number" id="sNightTo" min="0" max="24"></div>
+  </div>
+  <div class="note">この時間帯は「ミルクのみ」タブが初期選択。定刻前に泣いたらミルク少量。それ以外の時間帯は母乳＋ミルクが初期選択で、定刻前は母乳。</div>
+
+  <h3>定刻前</h3>
+  <div class="grid2">
+    <div><label>次の定刻まで何分超で「定刻前」</label><input type="number" id="sPreMin" min="0"></div>
+    <div><label>定刻前のミルク量 ml</label><input type="number" id="sPreMl" min="0" step="5"></div>
+  </div>
+  <div class="grid2">
+    <div><label>夜の追加 上限回数</label><input type="number" id="sExtraMax" min="0"></div>
+    <div><label>前回から何時間で警告</label><input type="number" id="sMaxGapH" min="1" step="0.5"></div>
+  </div>
+
+  <h3>換算</h3>
+  <div class="grid2">
+    <div><label>母乳 1分 ≒ ミルク ml</label><input type="number" id="sCoef" min="0" step="0.5"></div>
+    <div><label>全体の増減 ml（±）</label><input type="number" id="sOffset" step="10"></div>
+  </div>
+  <div class="note">増減は表の量に常に加算。「泣くのが続けば+10」「吐き戻しが増えたら−10」をここで。</div>
+
+  <h3>成長段階テーブル（ミルクのみの1回量）</h3>
+  <table class="st" id="stageTable">
+    <thead><tr><th>日齢〜</th><th>ml/回</th><th>回/日</th><th>上限/日</th><th>定刻</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="note">初期値は明治ほほえみの調乳量目安（〜1/2ヶ月80、1/2〜1ヶ月80〜120、1〜2ヶ月120〜160、2〜3ヶ月120〜160、3ヶ月〜200）を日齢で段階化。定刻は「2,5,8,…」の形式。</div>
+  <div class="actions"><button class="btn sm" onclick="resetStages()">表を初期値に戻す</button></div>
+
+  <h3>体重（任意）</h3>
+  <div class="grid2">
+    <div><label>前回計測 kg</label><input type="number" id="sWkg" step="0.01" min="0"></div>
+    <div><label>計測日</label><input type="date" id="sWdate"></div>
+  </div>
+  <div class="note">フィードに新しいWeight記録があれば、1日あたりの増加gを表示。</div>
+
+  <h3>夫婦で同じ設定にする</h3>
+  <div class="actions">
+    <button class="btn" onclick="shareSettings()">設定リンクをコピー</button>
+  </div>
+  <div class="note">フィードURL以外の設定をリンクにする。LINEで送り、相手がこのアプリで開くと取り込まれる。</div>
+
+  <div class="actions">
+    <button class="btn pri" onclick="closeSettings(true)">保存</button>
+    <button class="btn" onclick="closeSettings(false)">キャンセル</button>
+  </div>
+  <div class="note" style="margin-top:20px">
+    出典：<a href="https://www.meiji.co.jp/baby/hohoemi/mixed-feeding/" target="_blank" rel="noopener">明治 調乳量の目安</a> /
+    <a href="https://healthychildren.org/English/ages-stages/baby/formula-feeding/Pages/Amount-and-Schedule-of-Formula-Feedings.aspx" target="_blank" rel="noopener">AAP</a> /
+    <a href="https://kidshealth.org/en/parents/breastfeed-often.html" target="_blank" rel="noopener">KidsHealth</a> /
+    <a href="https://www.piyolog.com/app/piyolog/data_feed/ja/" target="_blank" rel="noopener">ぴよログ データフィード仕様</a>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ========== 設定 ========== */
+const LS_KEY='milkapp.settings.v1', LS_FEED='milkapp.feedcache.v1';
+const DEFAULT_STAGES=[
+  // fromDay, formula-only ml per feed, feeds/day, daily cap ml, slot hours
+  {from:0,  ml:80,  n:7, cap:560, slots:'2,5,8,11,14,17,20,23'},
+  {from:14, ml:100, n:7, cap:840, slots:'2,5,8,11,14,17,20,23'},
+  {from:22, ml:120, n:7, cap:840, slots:'2,5,8,11,14,17,20,23'},
+  {from:30, ml:140, n:6, cap:960, slots:'2,6,10,14,18,22'},
+  {from:45, ml:160, n:6, cap:960, slots:'2,6,10,14,18,22'},
+  {from:60, ml:160, n:6, cap:960, slots:'2,6,10,14,18,22'},
+  {from:90, ml:200, n:5, cap:1000, slots:'6,10,14,18,22'},
+  {from:150,ml:200, n:5, cap:1000, slots:'6,10,14,18,22'},
+  {from:210,ml:200, n:5, cap:1000, slots:'6,10,14,18,22'},
+  {from:270,ml:200, n:5, cap:1000, slots:'6,10,14,18,22'},
+];
+const DEFAULTS={
+  feedUrl:'', birth:'2026-10-20', demo:false,
+  nightFrom:0, nightTo:8,
+  preMin:30, preMl:40, extraMax:1, maxGapH:4,
+  coef:2.5, offset:0,
+  stages:DEFAULT_STAGES,
+  wkg:null, wdate:'',
+};
+let S=loadSettings();
+function loadSettings(){
+  try{const o=JSON.parse(localStorage.getItem(LS_KEY)||'{}');return Object.assign({},DEFAULTS,o,{stages:(o.stages&&o.stages.length)?o.stages:DEFAULT_STAGES.map(s=>({...s}))});}
+  catch(e){return Object.assign({},DEFAULTS,{stages:DEFAULT_STAGES.map(s=>({...s}))});}
+}
+function saveSettings(){try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}}
+
+/* ========== ユーティリティ ========== */
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const fmtHM=d=>pad(d.getHours())+':'+pad(d.getMinutes());
+function fmtAgo(ms){const m=Math.round(ms/60000);if(m<60)return m+'分前';const h=Math.floor(m/60);return h+'時間'+(m%60?m%60+'分':'')+'前';}
+function fmtIn(ms){const m=Math.max(0,Math.round(ms/60000));if(m<60)return 'あと'+m+'分';const h=Math.floor(m/60);return 'あと'+h+'時間'+(m%60?m%60+'分':'');}
+function round10(x){return Math.max(0,Math.round(x/10)*10);}
+function ageDays(now){const b=new Date(S.birth+'T00:00:00');const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());return Math.floor((t-b)/86400000);}
+function stageFor(days){let cur=S.stages[0];for(const st of S.stages){if(days>=Number(st.from))cur=st;}return cur;}
+function parseSlots(str){return String(str).split(/[,、\s]+/).map(Number).filter(n=>!isNaN(n)&&n>=0&&n<24).sort((a,b)=>a-b);}
+function stageLabel(days){
+  if(days<14)return '〜1/2ヶ月';if(days<30)return '1/2〜1ヶ月';if(days<60)return '1〜2ヶ月';if(days<90)return '2〜3ヶ月';
+  if(days<150)return '3〜5ヶ月';if(days<210)return '5〜7ヶ月';if(days<270)return '7〜9ヶ月';return '9〜12ヶ月';
+}
+function inNight(h){const f=Number(S.nightFrom),t=Number(S.nightTo);return f<t?(h>=f&&h<t):(h>=f||h<t);}
+function slotTimes(now,slots){ // slot Date objects for yesterday..tomorrow
+  const out=[];for(let d=-1;d<=1;d++){for(const h of slots){const x=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,h,0,0,0);out.push(x);}}return out.sort((a,b)=>a-b);
+}
+function nextSlot(now,slots){return slotTimes(now,slots).find(t=>t>now);}
+function prevSlot(now,slots){const a=slotTimes(now,slots).filter(t=>t<=now);return a[a.length-1];}
+
+/* ========== 推奨計算 ========== */
+function baseFormulaOnly(days){const st=stageFor(days);return Math.max(0,Number(st.ml)+Number(S.offset||0));}
+function recommend(opts){ // {days, slotDate, pre:boolean, mode:'A'|'B', bfMin, ebm}
+  const base=opts.pre?Number(S.preMl):baseFormulaOnly(opts.days);
+  let ml=base;
+  if(opts.mode==='A') ml-=Number(opts.bfMin||0)*Number(S.coef||0);
+  ml-=Number(opts.ebm||0);
+  return {base, ml:round10(ml)};
+}
+
+/* ========== フィード ========== */
+let FEED=null, FEEDAT=0, lastErr='';
+function loadFeedCache(){try{const o=JSON.parse(localStorage.getItem(LS_FEED)||'null');if(o&&o.data){FEED=o.data;FEEDAT=o.at;}}catch(e){}}
+async function fetchFeed(force){
+  if(S.demo){FEED=demoFeed();FEEDAT=Date.now();lastErr='';render();return;}
+  if(!S.feedUrl){render();return;}
+  if(!force&&Date.now()-FEEDAT<60000){render();return;}
+  $('btnRefresh').textContent='…';
+  try{
+    const r=await fetch(S.feedUrl,{cache:'no-store'});
+    if(!r.ok){
+      let code='';try{const j=await r.json();code=j&&j.error&&j.error.code||'';}catch(e){}
+      if(r.status===404)lastErr='フィードが無効（期限切れ・URL誤り）。ぴよログでフィードを再作成し、設定に貼り直す。';
+      else if(r.status===429)lastErr='アクセス過多。1分待って更新。';
+      else lastErr='取得失敗 HTTP '+r.status+(code?' '+code:'')+'。時間を空けて再試行。';
+    }else{
+      const j=await r.json();
+      if(j.schema_version!==1){lastErr='未対応のデータ形式 schema_version='+j.schema_version;}
+      else{FEED=j;FEEDAT=Date.now();lastErr='';try{localStorage.setItem(LS_FEED,JSON.stringify({at:FEEDAT,data:j}));}catch(e){}}
+    }
+  }catch(e){lastErr='通信できない。電波を確認。'+(FEED?'最後に取得したデータを表示中。':'');}
+  $('btnRefresh').textContent='↻';
+  render();
+}
+function records(){
+  if(!FEED||!Array.isArray(FEED.records))return [];
+  return FEED.records.map(r=>({...r,t:new Date(r.datetime)})).filter(r=>!isNaN(r.t)).sort((a,b)=>a.t-b.t);
+}
+const FEEDTYPES=new Set(['BreastFeeding','Formula','ExpressedBreastMilk']);
+function typeJa(t){return {BreastFeeding:'母乳',Formula:'ミルク',ExpressedBreastMilk:'搾乳',Pumping:'搾乳(採取)',Vomiting:'吐き戻し',Weight:'体重',Sleep:'寝る',WakeUp:'起きる',Pee:'おしっこ',Poop:'うんち',Drink:'飲み物',Temperature:'体温'}[t]||t;}
+function bfMinutes(r){return Math.round(((Number(r.leftTime)||0)+(Number(r.rightTime)||0))/60);}
+function val(r){return r.value&&typeof r.value.value==='number'?r.value.value:null;}
+function describe(r){
+  if(r.type==='BreastFeeding'){const m=bfMinutes(r);const v=val(r);return '母乳 '+(m?m+'分':'')+(v!=null?' '+v+'ml':'');}
+  if(r.type==='Formula'){const v=val(r);return 'ミルク '+(v!=null?v+'ml':'量なし');}
+  if(r.type==='ExpressedBreastMilk'){const v=val(r);return '搾乳 '+(v!=null?v+'ml':'量なし');}
+  if(r.type==='Weight'){const v=val(r);return '体重 '+(v!=null?v+'kg':'');}
+  return typeJa(r.type);
+}
+
+/* ========== デモ ========== */
+function demoFeed(){
+  const now=new Date();const rec=[];let id=0;
+  const push=(hAgo,type,extra)=>{const t=new Date(now.getTime()-hAgo*3600000);rec.push(Object.assign({event_id:'d'+(id++),datetime:t.toISOString(),type},extra||{}));};
+  push(23.5,'Formula',{value:{value:80,unit:'ml'}});
+  push(20.5,'BreastFeeding',{leftTime:300,rightTime:240,last:'right'});push(20.4,'Formula',{value:{value:60,unit:'ml'}});
+  push(17.5,'BreastFeeding',{leftTime:360,rightTime:180});push(17.4,'Formula',{value:{value:60,unit:'ml'}});
+  push(16,'Vomiting');
+  push(14.5,'BreastFeeding',{leftTime:240,rightTime:300});push(14.4,'Formula',{value:{value:60,unit:'ml'}});
+  push(11.5,'BreastFeeding',{leftTime:300,rightTime:300});push(11.4,'ExpressedBreastMilk',{value:{value:40,unit:'ml'}});push(11.3,'Formula',{value:{value:30,unit:'ml'}});
+  push(8.5,'BreastFeeding',{leftTime:240,rightTime:240});push(8.4,'Formula',{value:{value:60,unit:'ml'}});
+  push(5.5,'Formula',{value:{value:80,unit:'ml'}});
+  push(2.6,'Formula',{value:{value:80,unit:'ml'}});
+  push(0.3,'BreastFeeding',{leftTime:180,rightTime:240,last:'left'});
+  push(10,'Weight',{value:{value:3.42,unit:'kg'}});
+  return {schema_version:1,generated_at:now.toISOString(),range:{from:new Date(now-86400000).toISOString(),to:now.toISOString()},records:rec};
+}
+
+/* ========== 画面状態 ========== */
+let UI={mode:null,bfMin:null,ebm:null,ebmB:null,outManual:null,autoKey:''};
+function applyTheme(){const h=new Date().getHours();const dark=(h>=20||h<6)||window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',dark?'dark':'light');}
+
+function render(){
+  applyTheme();
+  const now=new Date();
+  const configured=!!S.feedUrl||S.demo;
+  $('setup').classList.toggle('hidden',configured);
+  $('main').classList.toggle('hidden',!configured);
+  const days=ageDays(now);const st=stageFor(days);const slots=parseSlots(st.slots);
+  $('hSub').textContent='生後'+days+'日・'+stageLabel(days)+'・基準'+baseFormulaOnly(days)+'ml';
+  const al=[];
+  if(lastErr)al.push(['warn',lastErr]);
+  if(S.demo)al.push(['info','デモデータ表示中。設定でオフにする。']);
+  if(!configured){$('alerts').innerHTML='';return;}
+
+  const recs=records();
+  const feeds=recs.filter(r=>FEEDTYPES.has(r.type));
+  const last=feeds[feeds.length-1];
+  // 前回
+  if(last){
+    // 同じ授乳セッション（15分以内）の記録をまとめる
+    const sess=feeds.filter(r=>last.t-r.t<15*60000);
+    $('lastWhat').textContent=sess.map(describe).join(' + ');
+    $('lastTime').textContent=fmtHM(sess[0].t);
+    $('lastAgo').textContent=fmtAgo(now-sess[0].t);
+    const gapH=(now-sess[0].t)/3600000;
+    if(gapH>=Number(S.maxGapH))al.push(['warn','前回から'+Math.floor(gapH)+'時間経過。起こして飲ませる。']);
+  }else{$('lastWhat').textContent='記録なし';$('lastTime').textContent='';$('lastAgo').textContent='';}
+
+  // 定刻
+  const ns=nextSlot(now,slots), ps=prevSlot(now,slots);
+  $('nextSlot').textContent=ns?fmtHM(ns):'—';
+  $('nextIn').textContent=ns?fmtIn(ns-now):'';
+  const minToNext=ns?(ns-now)/60000:0;
+  const pre=minToNext>Number(S.preMin) && !(last && last.t>ps); // 定刻後まだ飲ませてない→定刻扱い
+  // ただし直前の定刻後に既に飲ませていて、次まで遠い → 定刻前
+  const fedSincePrev=!!(last&&ps&&last.t>=ps);
+  const isPre=minToNext>Number(S.preMin)&&fedSincePrev;
+  const night=inNight(now.getHours());
+  $('modeBadge').textContent=isPre?'定刻前':'定刻';
+  $('modeBadge').classList.toggle('pre',isPre);
+
+  // 夜の追加回数
+  let extra=0;
+  if(night){
+    const nightStart=new Date(now);nightStart.setHours(Number(S.nightFrom),0,0,0);if(nightStart>now)nightStart.setDate(nightStart.getDate()-1);
+    const sl=slotTimes(now,slots);
+    extra=recs.filter(r=>r.type==='Formula'&&r.t>=nightStart&&r.t<=now&&!sl.some(t=>Math.abs(t-r.t)<=45*60000)).length;
+  }
+
+  // タブ初期選択
+  const autoKey=days+'|'+(isPre?1:0)+'|'+(night?1:0)+'|'+(last?last.event_id:'');
+  if(UI.autoKey!==autoKey){UI.autoKey=autoKey;UI.mode=null;UI.bfMin=null;UI.ebm=null;UI.ebmB=null;UI.outManual=null;}
+  if(UI.mode===null)UI.mode=night?'B':'A';
+  // 母乳・搾乳の自動入力（直近30分）
+  let bfAuto='',ebmAuto='';
+  if(UI.bfMin===null){
+    const rb=recs.filter(r=>r.type==='BreastFeeding'&&now-r.t<=30*60000).pop();
+    if(rb&&bfMinutes(rb)>0){UI.bfMin=bfMinutes(rb);bfAuto=fmtHM(rb.t)+'の記録から自動入力';}
+    else UI.bfMin=8;
+  }
+  if(UI.ebm===null){
+    const re=recs.filter(r=>r.type==='ExpressedBreastMilk'&&now-r.t<=30*60000).pop();
+    if(re&&val(re)!=null){UI.ebm=val(re);ebmAuto=fmtHM(re.t)+'の記録から自動入力';}else UI.ebm=0;
+    UI.ebmB=UI.ebm;
+  }
+  $('bfAuto').textContent=bfAuto;$('ebmAuto').textContent=ebmAuto;
+
+  // 定刻前の手順
+  const ps_=$('preSteps');
+  if(isPre){
+    ps_.classList.remove('hidden');
+    if(night){
+      ps_.innerHTML='まず <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けばミルク少量。次の定刻と量は変えない。<br>今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回'+(extra>=Number(S.extraMax)?'　→ <b>上限。空腹以外。抱っこで対応</b>':'');
+    }else{
+      ps_.innerHTML='まず <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けば<b>母乳</b>。ミルクは足さない。次の定刻と量は変えない。';
+    }
+  }else ps_.classList.add('hidden');
+
+  // タブ描画
+  $('tabA').classList.toggle('on',UI.mode==='A');$('tabB').classList.toggle('on',UI.mode==='B');
+  $('paneA').classList.toggle('hidden',UI.mode!=='A');$('paneB').classList.toggle('hidden',UI.mode!=='B');
+  $('bfMin').value=UI.bfMin;$('ebmMl').value=UI.ebm;$('ebmMlB').value=UI.ebmB;
+
+  // 推奨
+  const rec=recommend({days,pre:isPre,mode:UI.mode,bfMin:UI.bfMin,ebm:UI.mode==='A'?UI.ebm:UI.ebmB});
+  let out=UI.outManual!=null?UI.outManual:rec.ml;
+  if(isPre&&!night&&UI.mode==='A'&&UI.outManual==null){out=0;}
+  $('outMl').value=out;$('manualTag').classList.toggle('hidden',UI.outManual==null);
+  const ebmNow=UI.mode==='A'?UI.ebm:UI.ebmB;
+  let lab='',bigv='';
+  if(UI.mode==='A'){lab=(isPre&&!night)?'母乳のみ。ミルクは足さない':('母乳'+UI.bfMin+'分'+(ebmNow>0?' + 搾乳'+ebmNow+'ml':'')+' → 粉ミルク');}
+  else{lab=(ebmNow>0?'搾乳'+ebmNow+'ml → 粉ミルク':'粉ミルク');}
+  bigv=(isPre&&!night&&UI.mode==='A')?'<span style="font-size:40px">—</span>':('<span style="color:var(--accent)">'+out+'</span><small>ml</small>');
+  $('bigLabel').textContent=lab;$('bigOut').innerHTML=bigv;
+  $('calcNote').textContent=isPre?('定刻前の基準 '+S.preMl+'ml'+(UI.mode==='A'?'、母乳1分≒'+S.coef+'ml':'')):('基準 ミルクのみ'+rec.base+'ml'+(UI.mode==='A'?'、母乳1分≒'+S.coef+'ml':'')+(S.offset?'（増減'+(S.offset>0?'+':'')+S.offset+'含む）':''));
+
+  // 次回
+  if(ns){
+    const nNight=inNight(ns.getHours());const nDays=ageDays(ns);const nb=baseFormulaOnly(nDays);
+    $('nxTime').textContent=fmtHM(ns);
+    if(nNight){$('nxWhat').innerHTML='ミルク '+nb+'ml<small>搾乳があれば先に、残りをミルク</small>';}
+    else{$('nxWhat').innerHTML='母乳 → ミルク '+round10(nb-8*Number(S.coef))+'ml<small>母乳8分の場合。長ければ減らす</small>';}
+    const ns2=slotTimes(now,parseSlots(stageFor(nDays).slots)).find(t=>t>ns);
+    $('nxNote').textContent=(ns2?'その次 '+fmtHM(ns2)+'。':'')+(nDays!==days?'日齢が変わり基準 '+nb+'ml。':'');
+  }
+
+  // 今日
+  const d0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const today=recs.filter(r=>r.t>=d0);
+  const tF=today.filter(r=>r.type==='Formula').reduce((a,r)=>a+(val(r)||0),0);
+  const tE=today.filter(r=>r.type==='ExpressedBreastMilk').reduce((a,r)=>a+(val(r)||0),0);
+  const tB=today.filter(r=>r.type==='BreastFeeding');const tBmin=tB.reduce((a,r)=>a+bfMinutes(r),0);
+  const tV=today.filter(r=>r.type==='Vomiting').length;
+  const cap=Number(st.cap)||0;
+  $('todayLabel').textContent=(now.getMonth()+1)+'/'+now.getDate()+' 0:00〜';
+  $('tdFormula').textContent=tF;$('tdCap').textContent=cap||'—';
+  const pct=cap?Math.min(100,tF/cap*100):0;$('tdBar').style.width=pct+'%';$('tdBar').classList.toggle('over',cap&&tF>cap);
+  $('tdEbm').innerHTML=tE+'<small style="font-size:12px"> ml</small>';
+  $('tdBf').innerHTML=tB.length+'<small style="font-size:12px"> 回 '+tBmin+'分</small>';
+  $('tdVomit').innerHTML=tV+'<small style="font-size:12px"> 回</small>';
+  const leftSlots=slots.filter(h=>new Date(now.getFullYear(),now.getMonth(),now.getDate(),h)>now).length;
+  $('tdLeft').innerHTML=leftSlots+'<small style="font-size:12px"> 回</small>';
+  let tdn=[];
+  if(cap&&leftSlots>0){const room=cap-tF;tdn.push(room>0?('残り'+leftSlots+'回。上限まで1回あたり'+Math.min(baseFormulaOnly(days),Math.floor(room/leftSlots/10)*10)+'ml'):'上限到達。以降は母乳か抱っこで。');}
+  if(cap&&tF>cap)al.push(['warn','今日の粉ミルクが上限'+cap+'mlを超過（'+tF+'ml）']);
+  if(tV>=3)tdn.push('吐き戻し'+tV+'回。増えていればその時間帯を10ml減らす（設定の増減）。');
+  if(!FEED||!FEED.range||new Date(FEED.range.from)>d0)tdn.push('フィードは直近24時間分。0時より前の記録は含まれないことがある。');
+  // 体重
+  const w=recs.filter(r=>r.type==='Weight'&&val(r)!=null).pop();
+  if(w&&S.wkg&&S.wdate){const dd=(w.t-new Date(S.wdate+'T00:00:00'))/86400000;if(dd>=1){const g=Math.round((val(w)-Number(S.wkg))*1000/dd);tdn.push('体重 '+val(w)+'kg（'+fmtHM(w.t)+'）。前回から1日'+g+'g増。目安25〜30g。');}}
+  else if(w)tdn.push('体重 '+val(w)+'kg の記録あり。');
+  $('tdNote').textContent=tdn.join(' ');
+
+  // タイムライン
+  const tl=recs.filter(r=>FEEDTYPES.has(r.type)||r.type==='Vomiting'||r.type==='Weight'||r.type==='Pumping').slice().reverse();
+  $('timeline').innerHTML=tl.length?tl.map(r=>'<li><span class="tm">'+fmtHM(r.t)+'</span><span class="ty">'+describe(r)+(r.memo?' <span class="muted">'+escapeHtml(r.memo)+'</span>':'')+'</span></li>').join(''):'<li class="muted">記録なし</li>';
+  $('feedGen').textContent=FEED&&FEED.generated_at?('取得 '+fmtHM(new Date(FEEDAT||FEED.generated_at))):'';
+
+  $('alerts').innerHTML=al.map(a=>'<div class="alert '+a[0]+'">'+escapeHtml(a[1])+'</div>').join('');
+}
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ========== 入力イベント ========== */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-step]');if(!b)return;
+  const k=b.dataset.step,d=Number(b.dataset.d);
+  if(k==='bf'){UI.bfMin=Math.max(0,Number(UI.bfMin)+d);UI.outManual=null;}
+  if(k==='ebm'){UI.ebm=Math.max(0,Number(UI.ebm)+d);UI.outManual=null;}
+  if(k==='ebmB'){UI.ebmB=Math.max(0,Number(UI.ebmB)+d);UI.outManual=null;}
+  if(k==='out'){UI.outManual=Math.max(0,Number($('outMl').value||0)+d);}
+  render();
+});
+$('bfMin').addEventListener('input',e=>{UI.bfMin=Math.max(0,Number(e.target.value)||0);UI.outManual=null;renderKeep(e.target);});
+$('ebmMl').addEventListener('input',e=>{UI.ebm=Math.max(0,Number(e.target.value)||0);UI.outManual=null;renderKeep(e.target);});
+$('ebmMlB').addEventListener('input',e=>{UI.ebmB=Math.max(0,Number(e.target.value)||0);UI.outManual=null;renderKeep(e.target);});
+$('outMl').addEventListener('input',e=>{UI.outManual=Math.max(0,Number(e.target.value)||0);renderKeep(e.target);});
+function renderKeep(el){const v=el.value;render();el.value=v;}
+$('tabA').onclick=()=>{UI.mode='A';UI.outManual=null;render();};
+$('tabB').onclick=()=>{UI.mode='B';UI.outManual=null;render();};
+$('btnRefresh').onclick=()=>fetchFeed(true);
+$('btnSettings').onclick=openSettings;
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')fetchFeed(false);});
+setInterval(()=>{if(document.visibilityState==='visible')render();},30000);
+
+/* ========== 設定画面 ========== */
+function openSettings(){
+  $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;
+  $('sNightFrom').value=S.nightFrom;$('sNightTo').value=S.nightTo;
+  $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
+  $('sCoef').value=S.coef;$('sOffset').value=S.offset;
+  $('sWkg').value=S.wkg==null?'':S.wkg;$('sWdate').value=S.wdate||'';
+  renderStageTable(S.stages);
+  $('sheet').classList.add('open');window.scrollTo(0,0);
+}
+function renderStageTable(stages){
+  const days=ageDays(new Date());const cur=stageFor(days);
+  $('stageTable').querySelector('tbody').innerHTML=stages.map((s,i)=>'<tr'+(s===cur?' class="cur"':'')+'>'+
+    '<td><input type="number" data-i="'+i+'" data-k="from" value="'+s.from+'"></td>'+
+    '<td><input type="number" step="10" data-i="'+i+'" data-k="ml" value="'+s.ml+'"></td>'+
+    '<td><input type="number" data-i="'+i+'" data-k="n" value="'+s.n+'"></td>'+
+    '<td><input type="number" step="10" data-i="'+i+'" data-k="cap" value="'+s.cap+'"></td>'+
+    '<td><input type="text" data-i="'+i+'" data-k="slots" value="'+s.slots+'" style="min-width:90px"></td></tr>').join('');
+}
+function readStageTable(){
+  const rows={};$('stageTable').querySelectorAll('input').forEach(inp=>{const i=inp.dataset.i,k=inp.dataset.k;rows[i]=rows[i]||{};rows[i][k]=k==='slots'?inp.value:Number(inp.value);});
+  return Object.values(rows).filter(r=>!isNaN(r.from)).sort((a,b)=>a.from-b.from);
+}
+function resetStages(){renderStageTable(DEFAULT_STAGES.map(s=>({...s})));}
+function closeSettings(save){
+  if(save){
+    const url=$('sFeed').value.trim();
+    if(url&&!/^https:\/\/feed\.piyolog\.com\/v1\/feed\//.test(url)){alert('フィードURLの形式が違う。https://feed.piyolog.com/v1/feed/… を貼る。');return;}
+    S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;
+    S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
+    S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
+    S.coef=Number($('sCoef').value);S.offset=Number($('sOffset').value)||0;
+    S.wkg=$('sWkg').value===''?null:Number($('sWkg').value);S.wdate=$('sWdate').value;
+    const stg=readStageTable();if(stg.length)S.stages=stg;
+    saveSettings();UI.autoKey='';FEEDAT=0;
+    $('sheet').classList.remove('open');fetchFeed(true);return;
+  }
+  $('sheet').classList.remove('open');render();
+}
+function shareSettings(){
+  const o={...S};delete o.feedUrl;delete o.demo;
+  const enc=btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const link=location.origin+location.pathname+'#s='+enc;
+  const done=()=>alert('コピーした。LINEで相手に送る。');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(link).then(done,()=>prompt('コピーして送る',link));
+  else prompt('コピーして送る',link);
+}
+function importFromHash(){
+  const m=location.hash.match(/^#s=([A-Za-z0-9_\-]+)/);if(!m)return;
+  try{
+    const json=decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/'))));
+    const o=JSON.parse(json);
+    if(confirm('共有された設定を取り込む？（フィードURLはこの端末のものを維持）')){
+      const keep=S.feedUrl;S=Object.assign({},DEFAULTS,o,{feedUrl:keep,demo:false});saveSettings();UI.autoKey='';
+    }
+  }catch(e){alert('設定リンクを読めなかった');}
+  history.replaceState(null,'',location.pathname+location.search);
+}
+
+/* ========== 起動 ========== */
+importFromHash();
+loadFeedCache();
+render();
+fetchFeed(true);
+</script>
+</body>
+</html>
