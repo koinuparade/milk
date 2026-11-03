@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ミルク">
-<meta name="theme-color" content="#111318">
+<meta name="theme-color" content="#f6f4ef">
 <title>ミルク量</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -99,7 +99,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">ミルク量 <span class="muted" style="font-weight:400;font-size:11px">v9</span></div>
+    <div class="t" id="hTitle">ミルク量 <span class="muted" style="font-weight:400;font-size:11px">v11</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -171,23 +171,15 @@ table.st tr.cur td{background:var(--accent-soft)}
   </div>
 
   <div class="card">
-    <h2>次回</h2>
-    <div class="next">
-      <div class="nt" id="nxTime">—</div>
-      <div class="nv" id="nxWhat">—</div>
-    </div>
-    <div class="note" id="nxNote"></div>
-  </div>
-
-  <div class="card">
     <div class="row"><h2>今日</h2><span class="muted" id="todayLabel"></span></div>
-    <div class="row"><span>粉ミルク <b id="tdFormula">0</b> ml</span><span class="muted">上限 <span id="tdCap">—</span> ml</span></div>
-    <div class="bar"><i id="tdBar" style="width:0%"></i></div>
+    <div><span>合計 <b id="tdTotal" style="font-size:24px">0</b> ml</span> <span class="muted" style="font-size:12px">ミルク換算（粉ミルク＋搾乳＋母乳）</span></div>
+    <div class="muted" id="tdRange" style="font-size:12px"></div>
+    <div id="tdBar2"></div>
     <div class="kv" style="margin-top:8px">
+      <div><div class="k">粉ミルク</div><div class="v" id="tdFormula">0<small style="font-size:12px"> ml</small></div></div>
       <div><div class="k">搾乳</div><div class="v" id="tdEbm">0<small style="font-size:12px"> ml</small></div></div>
       <div><div class="k">母乳</div><div class="v" id="tdBf">0<small style="font-size:12px"> 回</small></div></div>
       <div><div class="k">吐き戻し</div><div class="v" id="tdVomit">0<small style="font-size:12px"> 回</small></div></div>
-      <div><div class="k">残り定刻</div><div class="v" id="tdLeft">—</div></div>
     </div>
     <div class="note" id="tdNote"></div>
   </div>
@@ -243,6 +235,11 @@ table.st tr.cur td{background:var(--accent-soft)}
     <div><label>全体の増減 ml（±）</label><input type="number" id="sOffset" step="10"></div>
     <div><label>1日上限 ml/kg</label><input type="number" id="sCapPerKg" min="100" step="10"></div>
   </div>
+  <div class="grid2">
+    <div><label>1日下限 ml/kg</label><input type="number" id="sFloorPerKg" min="50" step="10"></div>
+    <div></div>
+  </div>
+  <div class="note">1日の目標は表のml/kg×体重。下限150・上限200はNHSの正常範囲。合計は粉ミルク＋搾乳＋母乳換算。</div>
   <div class="grid2">
     <div><label>胃内容の半減期 ミルク 分</label><input type="number" id="sHalfF" min="10"></div>
     <div><label>胃内容の半減期 母乳・搾乳 分</label><input type="number" id="sHalfB" min="10"></div>
@@ -306,7 +303,7 @@ const DEFAULTS={
   feedUrl:'', birth:'2026-10-20', demo:false,
   nightFrom:0, nightTo:8,
   preMin:30, preMl:40, extraMax:1, maxGapH:4, window:90, bfDefault:15,
-  coef:2.5, bfCap:20, offset:0, capPerKg:200, halfFormula:65, halfBreast:47,
+  coef:2.5, bfCap:20, offset:0, capPerKg:200, floorPerKg:150, halfFormula:65, halfBreast:47,
   stages:DEFAULT_STAGES,
   wkg:null, wdate:'',
 };
@@ -411,7 +408,7 @@ function demoFeed(){
 
 /* ========== 画面状態 ========== */
 let UI={mode:null,bfMin:null,ebm:null,ebmB:null,outManual:null,autoKey:''};
-function applyTheme(){const h=new Date().getHours();const dark=(h>=20||h<6)||window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',dark?'dark':'light');}
+function applyTheme(){document.documentElement.setAttribute('data-theme','light');}
 
 function render(){
   applyTheme();
@@ -560,7 +557,7 @@ function render(){
     ps_.innerHTML='胃に約'+Math.round(resNow)+'ml残っている推定。泣いたら <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けば'+(night?'ミルク少量':'<b>母乳</b>')+'。'+(night?'<br>今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回'+(extra>=Number(S.extraMax)?'　→ <b>空腹サインが続くなら与える。毎晩2回以上なら基準が足りない。設定の増減で+10</b>':''):'');
   }else if(isPre){
     ps_.classList.remove('hidden');
-    ps_.innerHTML='不足分 約<b>'+round10(needNow)+'ml</b>（ミルク換算）。次の定刻 <b>'+(ns?fmtHM(ns):'—')+'</b> まで'+(ns?fmtIn(ns-now).replace('あと',''):'')+'。'+(night?'今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回':'昼は<b>母乳</b>で補ってもよい。')+(ns?'<br>今あげれば '+fmtHM(ns)+' は基準より少なくなる（下の次回欄）。':'');
+    ps_.innerHTML='不足分 約<b>'+round10(needNow)+'ml</b>（ミルク換算）。次の定刻 <b>'+(ns?fmtHM(ns):'—')+'</b> まで'+(ns?fmtIn(ns-now).replace('あと',''):'')+'。'+(night?'今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回':'昼は<b>母乳</b>で補ってもよい。');
   }else ps_.classList.add('hidden');
 
   // タブ描画
@@ -588,23 +585,6 @@ function render(){
   $('bigLabel').textContent=lab;$('bigOut').innerHTML=bigv;
   $('calcNote').textContent=calc;
 
-  // 次回
-  if(ns){
-    const nNight=inNight(ns.getHours());const nDays=ageDays(ns);const nb=baseFormulaOnly(nDays);
-    const giveNow=Math.max(0,round10(needNow));
-    const needNo=round10(nb*hungerAt(ns)), needYes=round10(nb*hungerAt(ns,giveNow));
-    $('nxTime').textContent=fmtHM(ns);
-    const bfd=Number(S.bfDefault||15), bfEq=round10(bfd*Number(S.coef));
-    const fmtN=(n)=>nNight?('ミルク '+n+'ml'):(n-bfEq<=0?'母乳のみで足りる見込み':'母乳 → ミルク '+(n-bfEq)+'ml');
-    if(giveNow>0&&!enough){
-      $('nxWhat').innerHTML=fmtN(needYes)+'<small>今'+giveNow+'mlあげた場合。あげなければ '+fmtN(needNo)+'</small>';
-    }else{
-      $('nxWhat').innerHTML=fmtN(needNo)+'<small>'+(nNight?'搾乳があれば先に、残りをミルク':'母乳'+bfd+'分の場合。長ければ減らす')+'</small>';
-    }
-    const ns2=slotTimes(now,parseSlots(stageFor(nDays).slots)).find(t=>t>ns);
-    $('nxNote').textContent=(ns2?'その次 '+fmtHM(ns2)+'。':'')+(nDays!==days?'日齢が変わり基準 '+nb+'ml。':'');
-  }
-
   // 今日
   const d0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const today=recs.filter(r=>r.t>=d0);
@@ -613,17 +593,49 @@ function render(){
   const tB=today.filter(r=>r.type==='BreastFeeding');const tBmin=tB.reduce((a,r)=>a+bfMinutes(r),0);
   const tV=today.filter(r=>r.type==='Vomiting').length;
   const cap=dailyCap(days);
+  const stg=stageFor(days);
+  const tBeq=tB.reduce((a,r)=>a+Math.min(bfMinutes(r),Number(S.bfCap||20))*Number(S.coef||0),0);
+  const tTotal=Math.round(tF+tE+tBeq);
+  // 1日の必要量：下限（150ml/kg）・目標（表のml/kg）・上限（capPerKg）
+  let low,target,high;
+  if(KG){low=round10(KG*Number(S.floorPerKg||150));target=round10(KG*Number(stg.mlkg));high=cap;}
+  else{low=Number(stg.min)*Number(stg.n);target=round10((Number(stg.min)+Number(stg.max))/2*Number(stg.n));high=cap;}
+  const dayFrac=(now-d0)/86400000;
+  const expectNow=Math.round(target*dayFrac);
   $('todayLabel').textContent=(now.getMonth()+1)+'/'+now.getDate()+' 0:00〜';
-  $('tdFormula').textContent=tF;$('tdCap').textContent=cap||'—';
-  const pct=cap?Math.min(100,tF/cap*100):0;$('tdBar').style.width=pct+'%';$('tdBar').classList.toggle('over',cap&&tF>cap);
+  $('tdTotal').textContent=tTotal;
+  $('tdRange').textContent='1日の必要量：下限'+low+'・目標'+target+'・上限'+high+' ml'+(KG?'（'+KG+'kg×'+S.floorPerKg+'/'+stg.mlkg+'/'+S.capPerKg+'）':'（体重未設定）');
+  {
+    const Wb=340,Hb=46,pl=6,pr=6;const maxV=Math.max(high*1.1,tTotal*1.05);
+    const xb=v=>pl+(v/maxV)*(Wb-pl-pr);
+    const over=tTotal>high;
+    const svgb='<svg viewBox="0 0 '+Wb+' '+Hb+'" width="100%" style="display:block">'+
+      '<rect x="'+pl+'" y="14" width="'+(Wb-pl-pr)+'" height="12" rx="6" fill="var(--tab)"/>'+
+      '<rect x="'+xb(low)+'" y="14" width="'+(xb(high)-xb(low))+'" height="12" rx="6" fill="var(--ok-soft)"/>'+
+      '<rect x="'+pl+'" y="14" width="'+Math.max(0,xb(Math.min(tTotal,maxV))-pl)+'" height="12" rx="6" fill="'+(over?'var(--warn)':'var(--accent)')+'"/>'+
+      '<line x1="'+xb(expectNow)+'" y1="10" x2="'+xb(expectNow)+'" y2="30" stroke="var(--text)" stroke-width="1.5"/>'+
+      '<text x="'+xb(expectNow)+'" y="8" font-size="9" text-anchor="middle" fill="var(--text)">今の時刻の目安'+expectNow+'</text>'+
+      '<text x="'+xb(low)+'" y="41" font-size="9" text-anchor="end" fill="var(--muted)">下限'+low+'</text>'+
+      '<text x="'+xb(target)+'" y="41" font-size="9" text-anchor="middle" fill="var(--muted)">目標'+target+'</text>'+
+      '<text x="'+xb(high)+'" y="41" font-size="9" text-anchor="start" fill="var(--muted)">上限'+high+'</text>'+
+      '<line x1="'+xb(target)+'" y1="12" x2="'+xb(target)+'" y2="28" stroke="var(--muted)" stroke-dasharray="2,2"/>'+
+      '</svg>';
+    $('tdBar2').innerHTML=svgb;
+  }
+  $('tdFormula').innerHTML=tF+'<small style="font-size:12px"> ml</small>';
   $('tdEbm').innerHTML=tE+'<small style="font-size:12px"> ml</small>';
-  $('tdBf').innerHTML=tB.length+'<small style="font-size:12px"> 回 '+tBmin+'分</small>';
+  $('tdBf').innerHTML=tB.length+'<small style="font-size:12px"> 回 '+tBmin+'分≒'+Math.round(tBeq)+'ml</small>';
   $('tdVomit').innerHTML=tV+'<small style="font-size:12px"> 回</small>';
   const leftSlots=slots.filter(h=>new Date(now.getFullYear(),now.getMonth(),now.getDate(),h)>now).length;
-  $('tdLeft').innerHTML=leftSlots+'<small style="font-size:12px"> 回</small>';
   let tdn=[];
-  if(cap&&leftSlots>0){const room=cap-tF;tdn.push(room>0?('残り'+leftSlots+'回。上限まで1回あたり'+Math.min(baseFormulaOnly(days),Math.floor(room/leftSlots/10)*10)+'ml'):'上限到達。以降は母乳か抱っこで。');}
-  if(cap&&tF>cap)al.push(['warn','今日の粉ミルクが上限'+cap+'mlを超過（'+tF+'ml）']);
+  {
+    const diff=tTotal-expectNow;
+    tdn.push('今の時刻の目安'+expectNow+'mlに対して'+(diff>=0?'+':'')+Math.round(diff)+'ml。');
+    if(leftSlots>0){const needLow=Math.max(0,low-tTotal),needTgt=Math.max(0,target-tTotal),roomHigh=high-tTotal;
+      tdn.push('残り'+leftSlots+'回で下限まであと'+needLow+'（1回'+Math.ceil(needLow/leftSlots/10)*10+'以上）、目標まであと'+needTgt+'（1回'+Math.ceil(needTgt/leftSlots/10)*10+'）、上限まで1回'+Math.max(0,Math.floor(roomHigh/leftSlots/10)*10)+'まで。');}
+    else if(tTotal<low)tdn.push('定刻は終了。下限まであと'+(low-tTotal)+'ml。');
+  }
+  if(tTotal>high)al.push(['warn','今日の合計（ミルク換算）が上限'+high+'mlを超過（'+tTotal+'ml）']);
   if(tV>=3)tdn.push('吐き戻し'+tV+'回。増えていればその時間帯を10ml減らす（設定の増減）。');
   if(!FEED||!FEED.range||new Date(FEED.range.from)>d0)tdn.push('フィードは直近24時間分。0時より前の記録は含まれないことがある。');
   // 体重
@@ -668,7 +680,7 @@ function openSettings(){
   $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;
   $('sNightFrom').value=S.nightFrom;$('sNightTo').value=S.nightTo;
   $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sWindow').value=S.window;$('sBfDefault').value=S.bfDefault;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
-  $('sCoef').value=S.coef;$('sOffset').value=S.offset;$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sHalfB').value=S.halfBreast;
+  $('sCoef').value=S.coef;$('sOffset').value=S.offset;$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sFloorPerKg').value=S.floorPerKg;$('sHalfB').value=S.halfBreast;
   $('sWkg').value=S.wkg==null?'':S.wkg;$('sWdate').value=S.wdate||'';
   renderStageTable(S.stages);
   $('sheet').classList.add('open');window.scrollTo(0,0);
@@ -695,7 +707,7 @@ function closeSettings(save){
     S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;
     S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
-    S.coef=Number($('sCoef').value);S.offset=Number($('sOffset').value)||0;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.halfBreast=Number($('sHalfB').value)||47;
+    S.coef=Number($('sCoef').value);S.offset=Number($('sOffset').value)||0;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
     {let w=$('sWkg').value===''?null:Number($('sWkg').value);if(w&&w>50)w=w/1000;S.wkg=w;}S.wdate=$('sWdate').value;
     const stg=readStageTable();if(stg.length)S.stages=stg;
     saveSettings();UI.autoKey='';
