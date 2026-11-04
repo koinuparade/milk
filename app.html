@@ -99,7 +99,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v21</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v22</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -181,6 +181,7 @@ table.st tr.cur td{background:var(--accent-soft)}
       <div><div class="k">搾乳</div><div class="v" id="tdEbm">0<small style="font-size:12px"> ml</small></div></div>
       <div><div class="k">母乳</div><div class="v" id="tdBf">0<small style="font-size:12px"> 回</small></div></div>
       <div><div class="k">吐き戻し</div><div class="v" id="tdVomit">0<small style="font-size:12px"> 回</small></div></div>
+      <div><div class="k">乳房を空にした回数（母乳＋搾乳採取）</div><div class="v" id="tdEmpty">0<small style="font-size:12px"> /8回</small></div></div>
     </div>
     <div class="note" id="tdNote"></div>
   </div>
@@ -671,7 +672,7 @@ function render(){
     const keys=Object.keys(S.days||{}).sort();
     const nights=keys.filter(k=>S.days[k].nightDone).slice(-3);
     const lastDays=keys.filter(k=>k<todayKey).slice(-3);
-    ADJINFO='直近の夜の定刻外ミルク：'+(nights.map(k=>k.slice(5).replace('-','/')+' '+S.days[k].nightExtra+'回').join('・')||'データ不足')+'。吐き戻し：'+(lastDays.map(k=>k.slice(5).replace('-','/')+' '+S.days[k].vomit+'回').join('・')||'データ不足')+'。目安：夜の定刻外2回以上が2晩続けば+10、吐き戻し5回以上が2日続けば−10。';
+    ADJINFO='直近の夜の定刻外ミルク：'+(nights.map(k=>k.slice(5).replace('-','/')+' '+S.days[k].nightExtra+'回').join('・')||'データ不足')+'。吐き戻し：'+(lastDays.map(k=>k.slice(5).replace('-','/')+' '+S.days[k].vomit+'回').join('・')||'データ不足')+'。目安：飲んだ後に寝ず起きている・抱っこでしか寝ない・夜の定刻外2回以上が続けば+10。吐き戻しが増えて1日5回以上が続けば−10。2時間で起きるなら空気を飲んでいる可能性、3時間空けば足りている。';
   }
   $('todayLabel').textContent=(now.getMonth()+1)+'/'+now.getDate()+' 0:00〜';
   $('tdTotal').textContent=tTotal;
@@ -709,6 +710,7 @@ function render(){
   $('tdEbm').innerHTML=tE+'<small style="font-size:12px"> ml</small>';
   $('tdBf').innerHTML=tB.length+'<small style="font-size:12px"> 回 '+tBmin+'分≒'+Math.round(tBeq)+'ml</small>';
   $('tdVomit').innerHTML=tV+'<small style="font-size:12px"> 回</small>';
+  {const tP=today.filter(r=>r.type==='Pumping').length;const tot=tB.length+tP;$('tdEmpty').innerHTML=tot+'<small style="font-size:12px"> /8回（母乳'+tB.length+'＋搾乳'+tP+'）</small>';}
   const leftSlots=slots.filter(h=>new Date(now.getFullYear(),now.getMonth(),now.getDate(),h)>now).length;
   let tdn=[];
   {
