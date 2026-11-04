@@ -99,7 +99,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v22</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v24</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -181,7 +181,7 @@ table.st tr.cur td{background:var(--accent-soft)}
       <div><div class="k">搾乳</div><div class="v" id="tdEbm">0<small style="font-size:12px"> ml</small></div></div>
       <div><div class="k">母乳</div><div class="v" id="tdBf">0<small style="font-size:12px"> 回</small></div></div>
       <div><div class="k">吐き戻し</div><div class="v" id="tdVomit">0<small style="font-size:12px"> 回</small></div></div>
-      <div><div class="k">乳房を空にした回数（母乳＋搾乳採取）</div><div class="v" id="tdEmpty">0<small style="font-size:12px"> /8回</small></div></div>
+      <div><div class="k">乳房を空にした回数（母乳＋搾乳）</div><div class="v" id="tdEmpty">0<small style="font-size:12px"> /8回</small></div></div>
     </div>
     <div class="note" id="tdNote"></div>
   </div>
@@ -710,7 +710,7 @@ function render(){
   $('tdEbm').innerHTML=tE+'<small style="font-size:12px"> ml</small>';
   $('tdBf').innerHTML=tB.length+'<small style="font-size:12px"> 回 '+tBmin+'分≒'+Math.round(tBeq)+'ml</small>';
   $('tdVomit').innerHTML=tV+'<small style="font-size:12px"> 回</small>';
-  {const tP=today.filter(r=>r.type==='Pumping').length;const tot=tB.length+tP;$('tdEmpty').innerHTML=tot+'<small style="font-size:12px"> /8回（母乳'+tB.length+'＋搾乳'+tP+'）</small>';}
+  {const tEb=today.filter(r=>r.type==='ExpressedBreastMilk').length;const tot=tB.length+tEb;$('tdEmpty').innerHTML=tot+'<small style="font-size:12px"> /8回（母乳'+tB.length+'＋搾乳'+tEb+'）</small>';}
   const leftSlots=slots.filter(h=>new Date(now.getFullYear(),now.getMonth(),now.getDate(),h)>now).length;
   let tdn=[];
   {
