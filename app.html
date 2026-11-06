@@ -108,7 +108,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v28</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v30</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -220,7 +220,9 @@ table.st tr.cur td{background:var(--accent-soft)}
   <input type="date" id="sBirth">
   <label>カスタム記録の名前（type=名前、カンマ区切り）</label>
   <input type="text" id="sTypeLabels" placeholder="Custom1=保湿">
-  <div class="note">ぴよログのカスタム記録はフィード上の型名で届く。設定最下部の「記録種別」で型名を確認して対応づける。</div>
+  <div class="note">ぴよログのカスタム記録はフィード上の型名で届く。設定最下部の「記録種別」で型名を確認して対応づける。先頭のものが空腹メーターに表示される。</div>
+  <label>その予定時刻（例 0,8,16）</label>
+  <input type="text" id="sCareSlots" placeholder="0,8,16">
   <label><input type="checkbox" id="sDemo"> デモデータで動作確認（フィードを使わない）</label>
 
   <h3>時間帯</h3>
@@ -337,7 +339,7 @@ const DEFAULTS={
   feedUrl:'', birth:'2026-10-20', demo:false,
   nightFrom:0, nightTo:8,
   preMin:30, preMl:40, extraMax:1, maxGapH:4, window:90, bfDefault:15,
-  coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true, typeLabels:'Custom1=保湿',
+  coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true, typeLabels:'Custom1=保湿', careSlots:'0,8,16',
   stages:DEFAULT_STAGES,
   wkg:null, wdate:'',
 };
@@ -550,7 +552,7 @@ function render(){
     const F=3;
     const feedFrom=(FEED&&FEED.range&&FEED.range.from)?new Date(FEED.range.from).getTime():now.getTime()-24*3600000;
     const t0=Math.min(feedFrom,now.getTime()-6*3600000), t1=now.getTime()+F*3600000;
-    const pxH=40; // 1時間あたりpx
+    const pxH=32; // 1時間あたりpx（スクロール前と同等）
     const Hh=120,padL=6,padR=8,padT=10,padB=22;
     const W_=Math.round(padL+padR+(t1-t0)/3600000*pxH);
     const x=t=>padL+(t-t0)/(t1-t0)*(W_-padL-padR);
@@ -566,6 +568,20 @@ function render(){
     for(const st_ of allSlots){if(st_>=t0&&st_<=t1)marks+='<line x1="'+x(st_)+'" y1="'+padT+'" x2="'+x(st_)+'" y2="'+y(0)+'" stroke="var(--muted)" stroke-dasharray="3,3" stroke-width="1"/><text x="'+x(st_)+'" y="'+(Hh-6)+'" font-size="10" text-anchor="middle" fill="var(--muted)">'+fmtHM(st_)+'</text>';}
     // 日付の切れ目
     {const d=new Date(now.getFullYear(),now.getMonth(),now.getDate());for(let k=-1;k<=1;k++){const dd=new Date(d);dd.setDate(dd.getDate()+k);if(dd>=t0&&dd<=t1)marks+='<line x1="'+x(dd)+'" y1="'+padT+'" x2="'+x(dd)+'" y2="'+y(0)+'" stroke="var(--text)" stroke-width="1"/><text x="'+(x(dd)+3)+'" y="'+(padT+9)+'" font-size="9" fill="var(--text)">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</text>';}}
+    // 保湿などカスタム記録：実績と次回予定
+    let care='';let careNote='';
+    {const cl=customLabels();const ck=Object.keys(cl)[0];
+     if(ck){const lab=cl[ck];const done=recs.filter(r=>r.type===ck&&r.t>=t0&&r.t<=now);
+       for(const r of done){care+='<g><line x1="'+x(r.t)+'" y1="'+(padT+2)+'" x2="'+x(r.t)+'" y2="'+(padT+14)+'" stroke="var(--ok)" stroke-width="2"/><text x="'+x(r.t)+'" y="'+(padT+24)+'" font-size="9" text-anchor="middle" fill="var(--ok)">'+lab+'</text><title>'+fmtHM(r.t)+' '+lab+'</title></g>';}
+       const cs=parseSlots(S.careSlots||'');const lastDone=recs.filter(r=>r.type===ck).pop();
+       if(cs.length){const cands=[];for(let d=0;d<=1;d++){for(const h of cs){cands.push(new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,h,0,0,0));}}
+         // 直近の予定が未実施（予定時刻±90分に記録なし）ならそれを「次」、済んでいれば次の予定
+         let nxt=null;for(const c of cands.sort((a,b)=>a-b)){const hit=recs.some(r=>r.type===ck&&Math.abs(r.t-c)<=90*60000);if(c>now&&!hit){nxt=c;break;}if(c<=now&&!hit&&now-c<=3*3600000){nxt=c;break;}}
+         if(nxt){if(nxt<=t1&&nxt>=t0){care+='<g><line x1="'+x(nxt)+'" y1="'+(padT+2)+'" x2="'+x(nxt)+'" y2="'+(padT+14)+'" stroke="var(--ok)" stroke-width="2" stroke-dasharray="2,2"/><text x="'+x(nxt)+'" y="'+(padT+24)+'" font-size="9" text-anchor="middle" fill="var(--ok)">'+(nxt<=now?lab+'未':'次'+lab)+'</text></g>';}
+           careNote=(nxt<=now?lab+'が予定（'+fmtHM(nxt)+'）を過ぎて未実施。':'次の'+lab+' '+fmtHM(nxt)+'。')+(lastDone?'前回 '+fmtHM(lastDone.t)+'。':'');}
+         else if(lastDone)careNote='前回の'+lab+' '+fmtHM(lastDone.t)+'。';}
+       else if(lastDone)careNote='前回の'+lab+' '+fmtHM(lastDone.t)+'。';}
+    }
     let evm='';
     for(const r of ev){if(r.t>=t0){evm+='<circle cx="'+x(r.t)+'" cy="'+y(reserveAt(new Date(r.t.getTime()+1000)))+'" r="3.5" fill="var(--text)"><title>'+fmtHM(r.t)+' '+describe(r)+'</title></circle>';}}
     let emptyAt=null;for(let t=now.getTime();t<=now.getTime()+6*3600000;t+=5*60000){if(reserveAt(new Date(t))<base0*0.15){emptyAt=new Date(t);break;}}
@@ -586,7 +602,7 @@ function render(){
       '<rect x="'+padL+'" y="'+y(base0*0.15)+'" width="'+(W_-padL-padR)+'" height="'+(y(0)-y(base0*0.15))+'" fill="var(--warn)" opacity="0.08"/>'+
       '<text x="'+(W_-padR-2)+'" y="'+(y(base0)-2)+'" font-size="9" text-anchor="end" fill="var(--muted)">100%＝1回の基準量'+base0+'ml</text>'+
       '<text x="'+(W_-padR-2)+'" y="'+(y(base0*0.15)-2)+'" font-size="9" text-anchor="end" fill="var(--warn)">ほぼ空（15%未満）</text>'+
-      marks+
+      marks+care+
       '<path d="'+area+'" fill="var(--accent)" opacity="0.18"/>'+
       '<path d="'+path+'" fill="none" stroke="var(--accent)" stroke-width="2"/>'+
       evm+
@@ -599,7 +615,7 @@ function render(){
     {const sc=$('stScroll');if(sc){const home=Math.max(0,Math.min(sc.scrollWidth-sc.clientWidth,nowX-sc.clientWidth*0.62));sc.dataset.home=home;sc.scrollLeft=wasHome?home:prevLeft;}}
     $('stLabel').innerHTML='<b style="font-size:20px;color:var(--text)">'+pct+'%</b>　胃内容 約'+Math.round(resNow)+'ml';
     const zone=pct>=60?'まだ多く残っている':(pct>=15?'消化中':'ほぼ空');
-    let stn=zone+'。'+(pct<15?'':(emptyAt?('このままなら '+fmtHM(emptyAt)+' 頃にほぼ空。'):'6時間以内にほぼ空にならない推定。'));
+    let stn=(careNote?careNote+' ':'')+zone+'。'+(pct<15?'':(emptyAt?('このままなら '+fmtHM(emptyAt)+' 頃にほぼ空。'):'6時間以内にほぼ空にならない推定。'));
     stn+=' 右にスワイプで過去（ぴよログで取れる範囲）。%＝胃内容÷1回の基準量。黒丸＝授乳、点線＝定刻。母乳・搾乳は半減期'+S.halfBreast+'分、ミルクは'+S.halfFormula+'分で指数的に減る近似（研究値の平均、個人差大）。胃が空＝必要量ではないので、あげる量は別計算。';
     $('stNote').textContent=stn;
   }
@@ -851,7 +867,7 @@ setInterval(()=>{if(document.visibilityState==='visible')render();},30000);
 
 /* ========== 設定画面 ========== */
 function openSettings(){
-  $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;$('sTypeLabels').value=S.typeLabels||'';
+  $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;$('sTypeLabels').value=S.typeLabels||'';$('sCareSlots').value=S.careSlots||'';
   $('sNightFrom').value=S.nightFrom;$('sNightTo').value=S.nightTo;
   $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sWindow').value=S.window;$('sBfDefault').value=S.bfDefault;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
   $('sCoef').value=S.coef;
@@ -890,7 +906,7 @@ function closeSettings(save){
   if(save){
     const url=$('sFeed').value.trim();const prevUrl=S.feedUrl;
     if(url&&!/^https:\/\/feed\.piyolog\.com\/v1\/feed\//.test(url)){alert('フィードURLの形式が違う。https://feed.piyolog.com/v1/feed/… を貼る。');return;}
-    S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;S.typeLabels=$('sTypeLabels').value;
+    S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;S.typeLabels=$('sTypeLabels').value;S.careSlots=$('sCareSlots').value;
     S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
     S.coef=Number($('sCoef').value);S.linkWeight=$('sLink').checked;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
