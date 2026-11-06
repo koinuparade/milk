@@ -73,6 +73,15 @@ ul.tl .ty{flex:1}
 ul.tl .am{font-weight:700}
 .muted{color:var(--muted);font-size:13px}
 .note{font-size:12px;color:var(--muted);margin-top:6px}
+.hyp{border-top:1px solid var(--line);padding:8px 0}
+.hyp:first-child{border-top:0}
+.hyp .h{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:15px}
+.hyp .lv{font-size:11px;padding:2px 7px;border-radius:999px;background:var(--tab);color:var(--muted);font-weight:700}
+.hyp .lv.hi{background:var(--warn-soft);color:var(--warn)}
+.hyp .lv.mid{background:var(--accent-soft);color:var(--text)}
+.hyp .ev{font-size:12px;color:var(--muted);margin:2px 0}
+.hyp .do{font-size:13px;margin-top:2px}
+.redflag{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px}
 .next{display:flex;justify-content:space-between;align-items:center}
 .next .nt{font-size:28px;font-weight:800}
 .next .nv{font-size:22px;font-weight:800;text-align:right}
@@ -99,7 +108,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v26</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v28</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -166,6 +175,11 @@ table.st tr.cur td{background:var(--accent-soft)}
   </div>
 
   <div class="card">
+    <div class="row"><h2>泣いている？</h2><button class="btn sm" id="btnCry">原因を調べる</button></div>
+    <div id="cryBox" class="hidden"></div>
+  </div>
+
+  <div class="card">
     <div class="row"><h2>空腹メーター</h2><span class="muted" id="stLabel"></span></div>
     <div id="stomach"></div>
     <div class="note" id="stNote"></div>
@@ -204,6 +218,9 @@ table.st tr.cur td{background:var(--accent-soft)}
   <div class="note">この端末内にのみ保存。共有リンクには含まれない。</div>
   <label>生年月日</label>
   <input type="date" id="sBirth">
+  <label>カスタム記録の名前（type=名前、カンマ区切り）</label>
+  <input type="text" id="sTypeLabels" placeholder="Custom1=保湿">
+  <div class="note">ぴよログのカスタム記録はフィード上の型名で届く。設定最下部の「記録種別」で型名を確認して対応づける。</div>
   <label><input type="checkbox" id="sDemo"> デモデータで動作確認（フィードを使わない）</label>
 
   <h3>時間帯</h3>
@@ -285,6 +302,8 @@ table.st tr.cur td{background:var(--accent-soft)}
     <button class="btn pri" onclick="closeSettings(true)">保存</button>
     <button class="btn" onclick="closeSettings(false)">キャンセル</button>
   </div>
+  <h3>フィードの記録種別（直近24時間）</h3>
+  <div class="note" id="feedTypes"></div>
   <div class="note" style="margin-top:20px">
     出典：<a href="https://www.meiji.co.jp/baby/hohoemi/mixed-feeding/" target="_blank" rel="noopener">明治 調乳量の目安</a> /
     <a href="https://healthychildren.org/English/ages-stages/baby/formula-feeding/Pages/Amount-and-Schedule-of-Formula-Feedings.aspx" target="_blank" rel="noopener">AAP</a> /
@@ -292,6 +311,9 @@ table.st tr.cur td{background:var(--accent-soft)}
     <a href="https://www.healthiertogether.nhs.uk/professional/infant-formula-essential-prescribing-information-3" target="_blank" rel="noopener">NHS 150ml/kg/日</a> /
     <a href="https://www.nhs.uk/start4life/baby/feeding-your-baby/bottle-feeding/how-to-bottle-feed/feeding-on-demand/" target="_blank" rel="noopener">NHS 応答的授乳</a> /
     <a href="https://www.citedrive.com/en/discovery/gastric-emptying-in-formulafed-and-breastfed-infants-measured-with-the-sup13supcoctanoic-acid-breath-test" target="_blank" rel="noopener">胃排出半減期（Van Den Driessche 1999）</a> /
+    <a href="https://www.nhs.uk/baby/caring-for-a-newborn/soothing-a-crying-baby" target="_blank" rel="noopener">NHS 泣く理由と対処</a> /
+    <a href="https://www.hse.ie/conditions/constipation-children/constipation-in-babies-0-to-6-months/" target="_blank" rel="noopener">HSE 0〜6ヶ月の便秘</a> /
+    <a href="https://www.healthiertogether.nhs.uk/new-parent-and-baby/straining-to-poo" target="_blank" rel="noopener">NHS いきみ（乳児排便困難）</a> /
     <a href="https://www.piyolog.com/app/piyolog/data_feed/ja/" target="_blank" rel="noopener">ぴよログ データフィード仕様</a>
   </div>
 </div>
@@ -315,7 +337,7 @@ const DEFAULTS={
   feedUrl:'', birth:'2026-10-20', demo:false,
   nightFrom:0, nightTo:8,
   preMin:30, preMl:40, extraMax:1, maxGapH:4, window:90, bfDefault:15,
-  coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true,
+  coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true, typeLabels:'Custom1=保湿',
   stages:DEFAULT_STAGES,
   wkg:null, wdate:'',
 };
@@ -357,7 +379,7 @@ function nextSlot(now,slots){return slotTimes(now,slots).find(t=>t>now);}
 function prevSlot(now,slots){const a=slotTimes(now,slots).filter(t=>t<=now);return a[a.length-1];}
 
 /* ========== 推奨計算 ========== */
-let KG=null, KGSRC='', ADJINFO='';
+let KG=null, KGSRC='', ADJINFO='', CRYHTML='';
 function baseInfo(days){
   const st=stageFor(days);const n=Math.max(1,Number(st.n));const ml0=Number(st.ml);const kg0=Number(st.kg)||0;
   let ml,how;
@@ -397,7 +419,8 @@ function records(){
   return FEED.records.map(r=>({...r,t:new Date(r.datetime)})).filter(r=>!isNaN(r.t)).sort((a,b)=>a.t-b.t);
 }
 const FEEDTYPES=new Set(['BreastFeeding','Formula','ExpressedBreastMilk']);
-function typeJa(t){return {BreastFeeding:'母乳',Formula:'ミルク',ExpressedBreastMilk:'搾乳',Pumping:'搾乳(採取)',Vomiting:'吐き戻し',Weight:'体重',Sleep:'寝る',WakeUp:'起きる',Pee:'おしっこ',Poop:'うんち',Drink:'飲み物',Temperature:'体温'}[t]||t;}
+function customLabels(){const m={};String(S.typeLabels||'').split(/[\n,、]+/).forEach(x=>{const i=x.indexOf('=');if(i>0)m[x.slice(0,i).trim()]=x.slice(i+1).trim();});return m;}
+function typeJa(t){const cl=customLabels();if(cl[t])return cl[t];return {BreastFeeding:'母乳',Formula:'ミルク',ExpressedBreastMilk:'搾乳',Pumping:'搾乳(採取)',Vomiting:'吐き戻し',Weight:'体重',Sleep:'寝る',WakeUp:'起きる',Pee:'おしっこ',Poop:'うんち',Drink:'飲み物',Temperature:'体温',Bath:'お風呂',Bathing:'沐浴',Medicine:'薬',Hospital:'病院',Cough:'咳',Rash:'発疹',Injury:'けが',Vaccination:'予防接種',Snack:'おやつ',BabyFood:'離乳食',Walk:'散歩',ToothBrushing:'歯みがき',Height:'身長',HeadCircumference:'頭囲',ChestCircumference:'胸囲'}[t]||t;}
 function bfMinutes(r){return Math.round(((Number(r.leftTime)||0)+(Number(r.rightTime)||0))/60);}
 function val(r){return r.value&&typeof r.value.value==='number'?r.value.value:null;}
 function describe(r){
@@ -405,6 +428,7 @@ function describe(r){
   if(r.type==='Formula'){const v=val(r);return 'ミルク '+(v!=null?v+'ml':'量なし');}
   if(r.type==='ExpressedBreastMilk'){const v=val(r);return '搾乳 '+(v!=null?v+'ml':'量なし');}
   if(r.type==='Weight'){const v=val(r);return '体重 '+(v!=null?v+'kg':'');}
+  if(r.type==='Temperature'){const v=val(r);return '体温 '+(v!=null?v+'℃':'');}
   return typeJa(r.type);
 }
 
@@ -423,6 +447,8 @@ function demoFeed(){
   push(2.6,'Formula',{value:{value:80,unit:'ml'}});
   push(0.3,'BreastFeeding',{leftTime:180,rightTime:240,last:'left'});
   push(10,'Weight',{value:{value:3.42,unit:'kg'}});
+  push(0.9,'Pee');push(3.4,'Pee');push(6.1,'Pee');push(9.2,'Pee');push(12.5,'Pee');push(15.8,'Pee');push(19,'Pee');
+  push(13,'Poop');push(0.6,'WakeUp');push(2.2,'Sleep');push(1.0,'Custom1');push(9,'Custom1');push(17,'Custom1');
   return {schema_version:1,generated_at:now.toISOString(),range:{from:new Date(now-86400000).toISOString(),to:now.toISOString()},records:rec};
 }
 
@@ -724,6 +750,50 @@ function render(){
   $('tdVomit').innerHTML=tV+'<small style="font-size:12px"> 回</small>';
   {const tEb=today.filter(r=>r.type==='ExpressedBreastMilk').length;const tot=tB.length+tEb;$('tdEmpty').innerHTML=tot+'<small style="font-size:12px"> /8回（母乳'+tB.length+'＋搾乳'+tEb+'）</small>';}
   const leftSlots=slots.filter(h=>new Date(now.getFullYear(),now.getMonth(),now.getDate(),h)>now).length;
+
+  // ---- 泣いている？ 仮説（データから可能性を並べる） ----
+  {
+    const h=[];
+    const minsAgo=t=>Math.round((now-t)/60000);
+    const lastOf=type=>recs.filter(r=>r.type===type).pop();
+    const since24=recs.filter(r=>now-r.t<=86400000);
+    const lv=(x)=>x>=2?'hi':(x>=1?'mid':'lo');
+    const lvTxt={hi:'可能性 高',mid:'可能性 中',lo:'可能性 低'};
+    // 1 空腹
+    {const lastF=feeds[feeds.length-1];const ago=lastF?minsAgo(lastF.t):null;let sc=hungerNow>=0.6?2:(hungerNow>=0.35?1:0);if(ago!=null&&ago>=150)sc=2;
+     h.push({sc,t:'空腹',ev:(ago!=null?'前回の授乳から'+ago+'分。':'授乳記録なし。')+'不足率'+Math.round(hungerNow*100)+'%（上の推奨 '+(UI.mode==='A'?'母乳→':'')+'ミルク'+out+'ml）',do:'口をパクパク・手を口へ・顔を向けるのは空腹サイン。'+(night?'ミルク':'母乳、足りなければミルク')+'。'});}
+    // 2 おむつ
+    {const lp=lastOf('Pee'),lo=lastOf('Poop');const last=[lp,lo].filter(Boolean).sort((a,b)=>a.t-b.t).pop();const ago=last?minsAgo(last.t):null;const sc=ago==null?1:(ago>=120?2:(ago>=60?1:0));
+     h.push({sc,t:'おむつ',ev:last?('最後の記録 '+fmtHM(last.t)+'（'+ago+'分前、'+typeJa(last.type)+'）'):'おしっこ・うんちの記録なし',do:'確認は10秒。濡れ・汚れ・かぶれ。'});}
+    // 3 空気・げっぷ
+    {const lastF=feeds[feeds.length-1];const ago=lastF?minsAgo(lastF.t):null;const sc=(ago!=null&&ago<=45)?2:((ago!=null&&ago<=90)?1:0);
+     h.push({sc,t:'空気・げっぷ',ev:ago!=null?('授乳から'+ago+'分'):'',do:'背中をまっすぐにして縦抱き、肩にもたれさせて背中をトントン。出なければ一度寝かせて抱き直す。小さい音が出るまで。'});}
+    // 4 眠い・疲れすぎ
+    {const w=lastOf('WakeUp'),sl=lastOf('Sleep');let ev='',sc=0;
+     if(w&&(!sl||w.t>sl.t)){const ago=minsAgo(w.t);sc=ago>=90?2:(ago>=60?1:0);ev='起きてから'+ago+'分（新生児の目安45〜90分。商業的な目安でAAP基準ではない）';}
+     else if(sl&&(!w||sl.t>w.t))ev='記録上は睡眠中（'+fmtHM(sl.t)+'〜）';else ev='睡眠の記録なし';
+     h.push({sc,t:'眠い・刺激が多い',ev,do:'あくび・目をこする・視線が泳ぐ。暗く静かな部屋で抱っこして揺らす。寝かせるときは仰向け。'});}
+    // 5 うんち・お腹の張り
+    {const lo=lastOf('Poop');const agoH=lo?((now-lo.t)/3600000):null;const cnt24=since24.filter(r=>r.type==='Poop').length;
+     let sc=0;if(agoH==null)sc=1;else if(agoH>=48)sc=2;else if(agoH>=24)sc=2;else if(agoH>=12)sc=1;
+     h.push({sc,t:'うんちが出ていない・お腹の張り',ev:(lo?('最後のうんち '+fmtHM(lo.t)+'（'+Math.round(agoH)+'時間前）。'):'うんちの記録なし。')+'直近24時間 '+cnt24+'回',
+       do:'いきんで泣いても柔らかい便が出れば正常（生後6ヶ月未満のいきみ）。対策：仰向けで足を自転車こぎ、おへそ周りを時計回りにマッサージ、ぬるめのお風呂。24時間出ず苦しそうなら綿棒刺激（日本の小児科で一般的。欧米のガイドは刺激や下剤を勧めていない）。<b>受診</b>：8週未満で2〜3日出ない、コロコロの硬い便、お腹がパンパンに硬い、嘔吐、血便、飲まない。'});}
+    // 6 暑い・寒い
+    h.push({sc:1,t:'暑い・寒い',ev:'データなし',do:'胸か首の後ろを触る。汗ばむなら1枚脱がす、冷たければ1枚足す。手足の冷たさでは判断しない。'});
+    // 7 体調
+    {const tp=since24.filter(r=>r.type==='Temperature'&&val(r)!=null).pop();const pee24=since24.filter(r=>r.type==='Pee').length;const vom24=since24.filter(r=>r.type==='Vomiting').length;
+     let sc=0,ev=[];if(tp){ev.push('体温 '+val(tp)+'℃（'+fmtHM(tp.t)+'）');if(val(tp)>=38)sc=2;else if(val(tp)>=37.5)sc=1;}
+     ev.push('おしっこ 直近24時間 '+pee24+'回'+(pee24<6?'（6回未満）':''));if(pee24<6)sc=Math.max(sc,1);
+     ev.push('吐き戻し '+vom24+'回');
+     h.push({sc,t:'体調',ev:ev.join('、'),do:'<b>3ヶ月未満で38.0℃以上は夜間でも受診</b>。ぐったり、哺乳量が半分以下、噴水状の嘔吐が続く、おしっこが1日6回未満、甲高い泣き声が止まらない、血便も受診。'});}
+    // 8 抱っこ・コリック
+    {const hr=now.getHours();const sc=(hr>=17&&hr<=23)?1:0;
+     h.push({sc,t:'抱っこがほしい・夕方のぐずり',ev:(hr>=17&&hr<=23)?'夕方〜夜はぐずりが増えやすい時間帯':'',do:'抱いて歩く、低い声で話す、おくるみ、単調な音。原因がなく元気なら、泣くこと自体は異常ではない。限界なら安全な場所（ベビーベッドに仰向け）に置いて数分離れてよい。揺さぶらない。'});}
+    h.sort((a,b)=>b.sc-a.sc);
+    CRYHTML=h.map(x=>'<div class="hyp"><div class="h"><span>'+x.t+'</span><span class="lv '+lv(x.sc)+'">'+lvTxt[lv(x.sc)]+'</span></div>'+(x.ev?'<div class="ev">'+x.ev+'</div>':'')+'<div class="do">'+x.do+'</div></div>').join('')+
+      '<div class="note">順番はぴよログの記録から機械的に並べた目安。泣き方・顔色・体の様子はあなたが見て判断する。</div>';
+    if($('cryBox')&&!$('cryBox').classList.contains('hidden'))$('cryBox').innerHTML=CRYHTML;
+  }
   let tdn=[];
   {
     const diff=tTotal-expectNow;
@@ -739,10 +809,15 @@ function render(){
   const w=recs.filter(r=>r.type==='Weight'&&val(r)!=null).pop();
   if(w&&S.wkg&&S.wdate){const dd=(w.t-new Date(S.wdate+'T00:00:00'))/86400000;if(dd>=1){const g=Math.round((val(w)-Number(S.wkg))*1000/dd);tdn.push('体重 '+val(w)+'kg（'+fmtHM(w.t)+'）。前回から1日'+g+'g増。目安20〜30g。');}}
   else if(w)tdn.push('体重 '+val(w)+'kg の記録あり。');
+  {const cl=customLabels();const parts=[];for(const k in cl){const a=today.filter(r=>r.type===k);const lastA=recs.filter(r=>r.type===k).pop();parts.push(cl[k]+' 今日'+a.length+'回'+(lastA?'（最終 '+fmtHM(lastA.t)+'）':''));}
+   const lp=recs.filter(r=>r.type==='Poop').pop();parts.push('うんち 今日'+today.filter(r=>r.type==='Poop').length+'回'+(lp?'（最終 '+fmtHM(lp.t)+'）':''));
+   parts.push('おしっこ 今日'+today.filter(r=>r.type==='Pee').length+'回');
+   if(parts.length)tdn.unshift(parts.join('、')+'。');}
   $('tdNote').textContent=tdn.join(' ');
 
   // タイムライン
-  const tl=recs.filter(r=>FEEDTYPES.has(r.type)||r.type==='Vomiting'||r.type==='Weight'||r.type==='Pumping').slice().reverse();
+  const cl=customLabels();
+  const tl=recs.filter(r=>FEEDTYPES.has(r.type)||['Vomiting','Weight','Pumping','Poop','Pee','Temperature'].includes(r.type)||cl[r.type]).slice().reverse();
   $('timeline').innerHTML=tl.length?tl.map(r=>'<li><span class="tm">'+fmtHM(r.t)+'</span><span class="ty">'+describe(r)+(r.memo?' <span class="muted">'+escapeHtml(r.memo)+'</span>':'')+'</span></li>').join(''):'<li class="muted">記録なし</li>';
   $('feedGen').textContent=FEED&&FEED.generated_at?('取得 '+fmtHM(new Date(FEEDAT||FEED.generated_at))):'';
 
@@ -769,19 +844,24 @@ $('tabA').onclick=()=>{UI.mode='A';UI.outManual=null;render();};
 $('tabB').onclick=()=>{UI.mode='B';UI.outManual=null;render();};
 $('btnRefresh').onclick=()=>{const w=60000-(Date.now()-FEEDAT);if(!S.demo&&w>0&&FEED){lastErr='前回取得から60秒未満。あと'+Math.ceil(w/1000)+'秒。';render();setTimeout(()=>{lastErr='';render();},2000);return;}fetchFeed(true);};
 $('btnSettings').onclick=openSettings;
+$('btnCry').onclick=()=>{const b=$('cryBox');b.classList.toggle('hidden');b.innerHTML=CRYHTML;$('btnCry').textContent=b.classList.contains('hidden')?'原因を調べる':'閉じる';};
 $('sMlNow').addEventListener('input',updateMlNowNote);$('sLink').addEventListener('change',updateMlNowNote);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')fetchFeed(false);});
 setInterval(()=>{if(document.visibilityState==='visible')render();},30000);
 
 /* ========== 設定画面 ========== */
 function openSettings(){
-  $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;
+  $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;$('sTypeLabels').value=S.typeLabels||'';
   $('sNightFrom').value=S.nightFrom;$('sNightTo').value=S.nightTo;
   $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sWindow').value=S.window;$('sBfDefault').value=S.bfDefault;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
   $('sCoef').value=S.coef;
   {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=bi.ml;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;updateMlNowNote();}$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sFloorPerKg').value=S.floorPerKg;$('sHalfB').value=S.halfBreast;
   $('sWkg').value=S.wkg==null?'':S.wkg;$('sWdate').value=S.wdate||'';
   renderStageTable(S.stages);
+  {const c={};for(const r of records()){const k=r.type+(r.subType?'/'+r.subType:'');c[k]=(c[k]||0)+1;}
+   const keys=Object.keys(c).sort();$('feedTypes').textContent=keys.length?keys.map(k=>k+'（'+typeJa(k.split('/')[0])+'）'+c[k]+'件').join('、'):'データなし';
+   const extra=records().filter(r=>!['BreastFeeding','Formula','ExpressedBreastMilk','Pumping','Vomiting','Weight','Sleep','WakeUp','Pee','Poop','Drink','Temperature'].includes(r.type)).slice(-5);
+   if(extra.length)$('feedTypes').textContent+='　例：'+extra.map(r=>fmtHM(r.t)+' '+JSON.stringify(Object.assign({},r,{t:undefined,datetime:undefined,event_id:undefined}))).join(' / ');}
   $('sheet').classList.add('open');window.scrollTo(0,0);
 }
 function updateMlNowNote(){
@@ -810,7 +890,7 @@ function closeSettings(save){
   if(save){
     const url=$('sFeed').value.trim();const prevUrl=S.feedUrl;
     if(url&&!/^https:\/\/feed\.piyolog\.com\/v1\/feed\//.test(url)){alert('フィードURLの形式が違う。https://feed.piyolog.com/v1/feed/… を貼る。');return;}
-    S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;
+    S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;S.typeLabels=$('sTypeLabels').value;
     S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
     S.coef=Number($('sCoef').value);S.linkWeight=$('sLink').checked;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
