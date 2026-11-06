@@ -99,7 +99,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v25</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v26</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -524,7 +524,7 @@ function render(){
     const F=3;
     const feedFrom=(FEED&&FEED.range&&FEED.range.from)?new Date(FEED.range.from).getTime():now.getTime()-24*3600000;
     const t0=Math.min(feedFrom,now.getTime()-6*3600000), t1=now.getTime()+F*3600000;
-    const pxH=60; // 1時間あたりpx
+    const pxH=40; // 1時間あたりpx
     const Hh=120,padL=6,padR=8,padT=10,padB=22;
     const W_=Math.round(padL+padR+(t1-t0)/3600000*pxH);
     const x=t=>padL+(t-t0)/(t1-t0)*(W_-padL-padR);
