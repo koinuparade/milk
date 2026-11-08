@@ -108,7 +108,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v30</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v32</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -267,7 +267,7 @@ table.st tr.cur td{background:var(--accent-soft)}
     <div><label>1日下限 ml/kg</label><input type="number" id="sFloorPerKg" min="50" step="10"></div>
     <div><label>1日上限 ml/kg</label><input type="number" id="sCapPerKg" min="100" step="10"></div>
   </div>
-  <div class="note">下限150・上限200はNHSの正常範囲。1日の目標は「1回量×回数」。</div>
+  <div class="note">下限150・上限200はNHSの正常範囲（〜3ヶ月に適用）。3〜6ヶ月は120〜170、6ヶ月〜は90〜140に自動で切り替わる。1日の目標は「1回量×回数」。</div>
   <div class="grid2">
     <div><label>胃内容の半減期 ミルク 分</label><input type="number" id="sHalfF" min="10"></div>
     <div><label>胃内容の半減期 母乳・搾乳 分</label><input type="number" id="sHalfB" min="10"></div>
@@ -276,10 +276,10 @@ table.st tr.cur td{background:var(--accent-soft)}
 
   <h3>成長段階テーブル（詳細）</h3>
   <table class="st" id="stageTable">
-    <thead><tr><th>日齢〜</th><th>1回量ml</th><th>基準体重kg</th><th>回/日</th><th>定刻</th></tr></thead>
+    <thead><tr><th>日齢〜</th><th>1日量ml</th><th>基準体重kg</th><th>定刻（回数＝個数）</th></tr></thead>
     <tbody></tbody>
   </table>
-  <div class="note">各段階の1回量は「基準体重のときの量」。体重連動オンなら実体重に比例させる（例：100ml@3.8kg → 3.15kgで80）。初期値は明治ほほえみ調乳量表の基準体重と範囲中央。回/日は8・6・5（明治は7・6・5）。定刻は「2,5,8,…」の形式。</div>
+  <div class="note">各段階の1日量は「基準体重のときの量」。体重連動オンなら実体重に比例させる（例：750ml@3.75kg → 3.49kgで698 → 8回で80ml）。1回量＝1日量（体重で比例）÷定刻の個数、10ml単位に切り捨て。1日量の初期値は明治ほほえみ・グリコ アイクレオ・たまひよ（助産師監修）・京都市資料の「1回量×回数」の中央値：8〜14日600@3.0kg、15〜29日750@3.75kg、1〜2ヶ月870@4.7kg、2〜3ヶ月855@5.7kg、3〜4ヶ月1000@6.6kg、4〜5ヶ月1050@6.9kg、5ヶ月〜1050〜1075。AAPの上限960mlと体重×200mlで頭打ち。生後0〜7日は日数×10ml/回を自動適用。</div>
   <div class="actions"><button class="btn sm" onclick="resetStages()">表を初期値に戻す</button></div>
 
   <h3>体重（計算に使用）</h3>
@@ -324,17 +324,28 @@ table.st tr.cur td{background:var(--accent-soft)}
 'use strict';
 /* ========== 設定 ========== */
 const LS_KEY='milkapp.settings.v1', LS_FEED='milkapp.feedcache.v1';
+// 1日量（基準体重のとき）。各社・各機関の「1回量の中央値×1日回数」の中央値。1回量＝1日量÷定刻の数
+// 出典：明治ほほえみ、グリコ アイクレオ、ベネッセたまひよ（助産師監修）、京都市「乳児期の栄養と給食」
+//  8〜14日  明治80×7=560@3.0 / グリコ90×7.5=675@3.0 / たまひよ80×7.5=600
+//  15〜29日 明治100×7=700@3.8 / グリコ120×7=840@3.7 / たまひよ100×7.5=750
+//  1〜2ヶ月 明治140×6=840@4.8 / グリコ150×6=900@4.6 / たまひよ140×6.5=910 / 京都720〜900
+//  2〜3ヶ月 明治140×6=840@5.8 / グリコ170×6=1020@5.6 / 京都750〜960
+//  3〜4ヶ月 明治200×5=1000@6.8 / グリコ210×5=1050@6.4 / たまひよ180×5.5=990 / 京都900〜1000
+//  4〜5ヶ月 明治1000@6.8 / グリコ220×5=1100@7.0
+//  5ヶ月〜  明治200×5=1000 / グリコ220〜240×5 。1日上限はAAPの960mlと体重×200mlで頭打ち
+// 生後0〜7日は「日数×10ml/回」を別途適用
 const DEFAULT_STAGES=[
-  // fromDay, 1回量ml（基準体重kgのとき）, feeds/day, slot hours  ※明治ほほえみ調乳量表の基準体重と範囲中央
-  {from:0,  ml:80,  kg:3.0, n:8, slots:'2,5,8,11,14,17,20,23'},
-  {from:14, ml:100, kg:3.8, n:8, slots:'2,5,8,11,14,17,20,23'},
-  {from:30, ml:140, kg:4.8, n:6, slots:'2,6,10,14,18,22'},
-  {from:60, ml:140, kg:5.8, n:6, slots:'2,6,10,14,18,22'},
-  {from:90, ml:200, kg:6.8, n:5, slots:'6,10,14,18,22'},
-  {from:150,ml:200, kg:7.7, n:5, slots:'6,10,14,18,22'},
-  {from:210,ml:200, kg:8.3, n:5, slots:'6,10,14,18,22'},
-  {from:270,ml:200, kg:8.8, n:5, slots:'6,10,14,18,22'},
+  {from:0,  daily:600,  kg:3.0,  slots:'2,5,8,11,14,17,20,23'},
+  {from:15, daily:750,  kg:3.75, slots:'2,5,8,11,14,17,20,23'},
+  {from:30, daily:870,  kg:4.7,  slots:'2,6,10,14,18,22'},
+  {from:60, daily:855,  kg:5.7,  slots:'2,6,10,14,18,22'},
+  {from:90, daily:1000, kg:6.6,  slots:'6,10,14,18,22'},
+  {from:120,daily:1050, kg:6.9,  slots:'6,10,14,18,22'},
+  {from:150,daily:1075, kg:7.55, slots:'6,10,14,18,22'},
+  {from:180,daily:1050, kg:8.15, slots:'6,10,14,18,22'},
+  {from:270,daily:1050, kg:8.7,  slots:'6,10,14,18,22'},
 ];
+const STAGE_VERSION=3;
 const DEFAULTS={
   feedUrl:'', birth:'2026-10-20', demo:false,
   nightFrom:0, nightTo:8,
@@ -348,12 +359,17 @@ function loadSettings(){
   try{
     const o=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
     let stages;
-    if(o.stages&&o.stages.length&&o.stages[0].ml!=null&&o.stages[0].kg!=null){stages=o.stages;}
-    else if(o.stages&&o.stages.length&&o.stages[0].mlkg!=null){ // 旧形式（ml/kg）→ ml＋基準体重 に移行
+    const nOf=r=>Math.max(1,String(r.slots||'').split(/[,、\s]+/).filter(x=>x!=='').length);
+    if(o.stages&&o.stages.length&&o.stages[0].daily!=null){stages=o.stages;}
+    else if(o.stages&&o.stages.length&&o.stages[0].ml!=null&&o.stages[0].kg!=null){ // v21〜31形式 → 1日量
+      stages=o.stages.map(r=>({from:Number(r.from),daily:Math.round(Number(r.ml)*(Number(r.n)||nOf(r))),kg:Number(r.kg),slots:r.slots}));
+    }else if(o.stages&&o.stages.length&&o.stages[0].mlkg!=null){ // 旧形式（ml/kg）
       const kgNow=(o.wkg&&o.wkg>0)?(o.wkg>50?o.wkg/1000:o.wkg):null;
-      stages=o.stages.map((r,i)=>{const d=DEFAULT_STAGES[Math.min(i,DEFAULT_STAGES.length-1)];const kg=kgNow||d.kg;const n=Number(r.n)||d.n;return {from:Number(r.from),ml:Math.max(10,Math.round(kg*Number(r.mlkg)/n/10)*10+Number(o.offset||0)),kg:Math.round(kg*100)/100,n,slots:r.slots||d.slots};});
+      stages=o.stages.map((r,i)=>{const d=DEFAULT_STAGES[Math.min(i,DEFAULT_STAGES.length-1)];const kg=kgNow||d.kg;return {from:Number(r.from),daily:Math.round(kg*Number(r.mlkg)),kg:Math.round(kg*100)/100,slots:r.slots||d.slots};});
     }else stages=DEFAULT_STAGES.map(s=>({...s}));
     delete o.offset;delete o.adjLog;delete o.autoAdj;delete o.lastAutoDate;
+    if((o.stageVersion||1)<STAGE_VERSION&&!o.stagesEdited){stages=DEFAULT_STAGES.map(s=>({...s}));}
+    o.stageVersion=STAGE_VERSION;
     return Object.assign({},DEFAULTS,o,{stages});
   }catch(e){return Object.assign({},DEFAULTS,{stages:DEFAULT_STAGES.map(s=>({...s}))});}
 }
@@ -366,6 +382,8 @@ const fmtHM=d=>pad(d.getHours())+':'+pad(d.getMinutes());
 function fmtAgo(ms){const m=Math.round(ms/60000);if(m<60)return m+'分前';const h=Math.floor(m/60);return h+'時間'+(m%60?m%60+'分':'')+'前';}
 function fmtIn(ms){const m=Math.max(0,Math.round(ms/60000));if(m<60)return 'あと'+m+'分';const h=Math.floor(m/60);return 'あと'+h+'時間'+(m%60?m%60+'分':'');}
 function round10(x){return Math.max(0,Math.round(x/10)*10);}
+function floor10(x){return Math.max(0,Math.floor(x/10+1e-9)*10);}
+function slotCount(st){return Math.max(1,parseSlots(st.slots).length);}
 function ageDays(now){const b=new Date(S.birth+'T00:00:00');const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());return Math.floor((t-b)/86400000);}
 function stageFor(days){let cur=S.stages[0];for(const st of S.stages){if(days>=Number(st.from))cur=st;}return cur;}
 function parseSlots(str){return String(str).split(/[,、\s]+/).map(Number).filter(n=>!isNaN(n)&&n>=0&&n<24).sort((a,b)=>a-b);}
@@ -383,14 +401,21 @@ function prevSlot(now,slots){const a=slotTimes(now,slots).filter(t=>t<=now);retu
 /* ========== 推奨計算 ========== */
 let KG=null, KGSRC='', ADJINFO='', CRYHTML='';
 function baseInfo(days){
-  const st=stageFor(days);const n=Math.max(1,Number(st.n));const ml0=Number(st.ml);const kg0=Number(st.kg)||0;
-  let ml,how;
-  if(S.linkWeight!==false&&KG&&kg0>0){ml=round10(ml0*KG/kg0);how=ml0+'ml@'+kg0+'kg → '+KG+'kgで'+ml;}
-  else{ml=round10(ml0);how=ml0+'ml（固定）';}
-  return {ml:Math.max(0,ml),how,st,n};
+  const st=stageFor(days);const n=slotCount(st);const d0=Number(st.daily);const kg0=Number(st.kg)||0;
+  let ml,how,daily;
+  if(days<8){ml=Math.max(10,(days+1)*10);daily=ml*n;how='生後'+(days+1)+'日目×10ml';return {ml,how,st,n,daily};}
+  if(S.linkWeight!==false&&KG&&kg0>0){daily=Math.round(d0*KG/kg0);how='1日'+d0+'ml@'+kg0+'kg → '+KG+'kgで'+daily+'ml';}
+  else{daily=d0;how='1日'+d0+'ml（固定）';}
+  const cap=dailyCap(days);
+  if(daily>cap){how+='、上限'+cap+'で頭打ち';daily=cap;}
+  ml=floor10(daily/n);how+='、÷'+n+'回＝'+ml+'ml';
+  return {ml:Math.max(0,ml),how,st,n,daily};
 }
 function baseFormulaOnly(days){return baseInfo(days).ml;}
-function dailyCap(days){const st=stageFor(days);if(KG)return Math.min(960,round10(KG*Number(S.capPerKg||200)));return Math.min(960,round10(Number(st.ml)*1.3)*Number(st.n));}
+// 体重あたりの1日量の範囲：〜3ヶ月 150〜200（設定値）、3〜6ヶ月 120〜170、6ヶ月〜 90〜140（Nutricia 150/120/100を中心に±）。AAP上限960
+function perKgRange(days){if(days<90)return [Number(S.floorPerKg||150),Number(S.capPerKg||200)];if(days<180)return [120,170];return [90,140];}
+function dailyCap(days){const st=stageFor(days);if(KG)return Math.min(960,round10(KG*perKgRange(days)[1]));return Math.min(960,round10(Number(st.daily)*1.15));}
+function dailyFloor(days){const st=stageFor(days);if(days<8)return 0;if(KG)return round10(KG*perKgRange(days)[0]);return round10(Number(st.daily)*0.8);}
 
 /* ========== フィード ========== */
 let FEED=null, FEEDAT=0, lastErr='';
@@ -691,8 +716,8 @@ function render(){
   const tTotal=Math.round(tF+tE+tBeq);
   // 1日の必要量：下限（150ml/kg）・目標（表のml/kg）・上限（capPerKg）
   let low,target,high;
-  if(KG){low=round10(KG*Number(S.floorPerKg||150));target=round10(baseFormulaOnly(days)*Number(stg.n));high=cap;}
-  else{low=round10(Number(stg.ml)*0.75)*Number(stg.n);target=round10(baseFormulaOnly(days)*Number(stg.n));high=cap;}
+  if(KG){low=dailyFloor(days);target=baseFormulaOnly(days)*slotCount(stg);high=cap;}
+  else{low=dailyFloor(days);target=baseFormulaOnly(days)*slotCount(stg);high=cap;}
   const dayFrac=(now-d0)/86400000;
   const expectNow=Math.round(target*dayFrac);
 
@@ -730,7 +755,7 @@ function render(){
   }
   $('todayLabel').textContent=(now.getMonth()+1)+'/'+now.getDate()+' 0:00〜';
   $('tdTotal').textContent=tTotal;
-  $('tdRange').textContent='1日の必要量：下限'+low+'・目標'+target+'・上限'+high+' ml（目標＝1回'+baseFormulaOnly(days)+'ml×'+stg.n+'回'+(KG?'、下限/上限＝'+KG+'kg×'+S.floorPerKg+'/'+S.capPerKg:'')+'）';
+  $('tdRange').textContent='1日の必要量：下限'+low+'・目標'+target+'・上限'+high+' ml（目標＝1回'+baseFormulaOnly(days)+'ml×'+slotCount(stg)+'回'+(KG?'、下限/上限＝'+KG+'kg×'+perKgRange(days)[0]+'/'+perKgRange(days)[1]+(high<KG*perKgRange(days)[1]?'、上限はAAPの960':''):'')+'）';
   {
     const Wb=340,Hb=58,pl=6,pr=6;const maxV=high;
     const xb=v=>pl+(Math.min(v,maxV)/maxV)*(Wb-pl-pr);
@@ -892,16 +917,15 @@ function renderStageTable(stages){
   const days=ageDays(new Date());const cur=stageFor(days);
   $('stageTable').querySelector('tbody').innerHTML=stages.map((s,i)=>'<tr'+(s===cur?' class="cur"':'')+'>'+
     '<td><input type="number" data-i="'+i+'" data-k="from" value="'+s.from+'"></td>'+
-    '<td><input type="number" step="10" data-i="'+i+'" data-k="ml" value="'+s.ml+'"></td>'+
-    '<td><input type="number" step="0.1" data-i="'+i+'" data-k="kg" value="'+s.kg+'"></td>'+
-    '<td><input type="number" data-i="'+i+'" data-k="n" value="'+s.n+'"></td>'+
+    '<td><input type="number" step="10" data-i="'+i+'" data-k="daily" value="'+s.daily+'"></td>'+
+    '<td><input type="number" step="0.05" data-i="'+i+'" data-k="kg" value="'+s.kg+'"></td>'+
     '<td><input type="text" data-i="'+i+'" data-k="slots" value="'+s.slots+'" style="min-width:90px"></td></tr>').join('');
 }
 function readStageTable(){
   const rows={};$('stageTable').querySelectorAll('input').forEach(inp=>{const i=inp.dataset.i,k=inp.dataset.k;rows[i]=rows[i]||{};rows[i][k]=k==='slots'?inp.value:Number(inp.value);});
   return Object.values(rows).filter(r=>!isNaN(r.from)).sort((a,b)=>a.from-b.from);
 }
-function resetStages(){renderStageTable(DEFAULT_STAGES.map(s=>({...s})));}
+function resetStages(){S.stagesEdited=false;renderStageTable(DEFAULT_STAGES.map(s=>({...s})));}
 function closeSettings(save){
   if(save){
     const url=$('sFeed').value.trim();const prevUrl=S.feedUrl;
@@ -911,9 +935,10 @@ function closeSettings(save){
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
     S.coef=Number($('sCoef').value);S.linkWeight=$('sLink').checked;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
     {let w=$('sWkg').value===''?null:Number($('sWkg').value);if(w&&w>50)w=w/1000;if(w!==S.wkg||$('sWdate').value!==S.wdate)S.wsrc='manual';S.wkg=w;}S.wdate=$('sWdate').value;
-    {const stg=readStageTable();if(stg.length)S.stages=stg;}
+    {const stg=readStageTable();if(stg.length){if(JSON.stringify(stg)!==JSON.stringify(S.stages))S.stagesEdited=true;S.stages=stg;}}
     {const d=ageDays(new Date());const cur=stageFor(d);const want=Number($('sMlNow').value);
-     if(want>0&&want!==baseInfo(d).ml){cur.ml=want;if(S.linkWeight!==false&&KG)cur.kg=KG;}}
+     if(want>0&&want!==baseInfo(d).ml){cur.daily=want*slotCount(cur);if(S.linkWeight!==false&&KG)cur.kg=KG;S.stagesEdited=true;}}
+    S.stageVersion=STAGE_VERSION;
     saveSettings();UI.autoKey='';
     $('sheet').classList.remove('open');fetchFeed(url!==prevUrl||S.demo);return;
   }
