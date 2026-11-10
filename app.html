@@ -108,7 +108,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v32</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v33</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -407,9 +407,12 @@ function baseInfo(days){
   if(S.linkWeight!==false&&KG&&kg0>0){daily=Math.round(d0*KG/kg0);how='1日'+d0+'ml@'+kg0+'kg → '+KG+'kgで'+daily+'ml';}
   else{daily=d0;how='1日'+d0+'ml（固定）';}
   const cap=dailyCap(days);
-  if(daily>cap){how+='、上限'+cap+'で頭打ち';daily=cap;}
-  ml=floor10(daily/n);how+='、÷'+n+'回＝'+ml+'ml';
-  return {ml:Math.max(0,ml),how,st,n,daily};
+  if(daily>cap){
+    if(st.userSet){how+='、手動設定のため上限'+cap+'を超えて適用';}
+    else{how+='、上限'+cap+'で頭打ち';daily=cap;}
+  }
+  ml=st.userSet?round10(daily/n):floor10(daily/n);how+='、÷'+n+'回＝'+ml+'ml';
+  return {ml:Math.max(0,ml),how,st,n,daily,over:daily>cap};
 }
 function baseFormulaOnly(days){return baseInfo(days).ml;}
 // 体重あたりの1日量の範囲：〜3ヶ月 150〜200（設定値）、3〜6ヶ月 120〜170、6ヶ月〜 90〜140（Nutricia 150/120/100を中心に±）。AAP上限960
@@ -512,6 +515,7 @@ function render(){
   if(lastErr)al.push(['warn',lastErr]);
   if(S.demo)al.push(['info','デモデータ表示中。設定でオフにする。']);
   if(!configured){$('alerts').innerHTML='';return;}
+  if(bi.over)al.push(['warn','手動設定の1回量'+bi.ml+'ml×'+bi.n+'回＝'+(bi.ml*bi.n)+'mlは1日上限'+dailyCap(days)+'ml（体重×'+perKgRange(days)[1]+'）を超えている。']);
   if(!KG)al.push(['info','体重が未設定。⚙で体重を入れるかぴよログに体重を記録すると、体重×150ml/kgで計算する。']);
 
   const feeds=recs.filter(r=>FEEDTYPES.has(r.type));
@@ -935,9 +939,11 @@ function closeSettings(save){
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
     S.coef=Number($('sCoef').value);S.linkWeight=$('sLink').checked;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
     {let w=$('sWkg').value===''?null:Number($('sWkg').value);if(w&&w>50)w=w/1000;if(w!==S.wkg||$('sWdate').value!==S.wdate)S.wsrc='manual';S.wkg=w;}S.wdate=$('sWdate').value;
-    {const stg=readStageTable();if(stg.length){if(JSON.stringify(stg)!==JSON.stringify(S.stages))S.stagesEdited=true;S.stages=stg;}}
+    {const stg=readStageTable();if(stg.length){
+       stg.forEach((r,i)=>{const o=S.stages[i];if(o&&o.from===r.from&&o.daily===r.daily&&o.kg===r.kg&&o.slots===r.slots){r.userSet=!!o.userSet;}else{r.userSet=true;S.stagesEdited=true;}});
+       S.stages=stg;}}
     {const d=ageDays(new Date());const cur=stageFor(d);const want=Number($('sMlNow').value);
-     if(want>0&&want!==baseInfo(d).ml){cur.daily=want*slotCount(cur);if(S.linkWeight!==false&&KG)cur.kg=KG;S.stagesEdited=true;}}
+     if(want>0&&want!==baseInfo(d).ml){cur.daily=want*slotCount(cur);if(S.linkWeight!==false&&KG)cur.kg=KG;cur.userSet=true;S.stagesEdited=true;}}
     S.stageVersion=STAGE_VERSION;
     saveSettings();UI.autoKey='';
     $('sheet').classList.remove('open');fetchFeed(url!==prevUrl||S.demo);return;
