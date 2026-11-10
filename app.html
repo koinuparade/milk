@@ -108,7 +108,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v33</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v34</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -201,11 +201,19 @@ table.st tr.cur td{background:var(--accent-soft)}
   </div>
 
   <div class="card">
+    <div class="row"><h2>成長曲線</h2><span class="muted" id="grLabel"></span></div>
+    <div id="grVerdict"></div>
+    <div id="grChart"></div>
+    <div class="kv" id="grKv" style="margin-top:8px"></div>
+    <div class="note" id="grNote"></div>
+  </div>
+
+  <div class="card">
     <div class="row"><h2>直近24時間</h2><span class="muted" id="feedGen"></span></div>
     <ul class="tl" id="timeline"></ul>
   </div>
 
-  <div class="note" style="text-align:center">表示は作る量の目安。満腹サイン（口を離す・顔を背ける・眠る）が出たら残しても止める。飲みきらせない。<br>母乳の分→ml換算は推定。判断は体重増（1日20〜30g）で。飲ませたらぴよログに記録。</div>
+  <div class="note" style="text-align:center">表示は作る量の目安。満腹サイン（口を離す・顔を背ける・眠る）が出たら残しても止める。飲みきらせない。<br>母乳の分→ml換算は推定。量が合っているかの判断は成長曲線（出生時の帯に沿っているか）で。飲ませたらぴよログに記録。</div>
 </div>
 
 <!-- settings -->
@@ -260,14 +268,14 @@ table.st tr.cur td{background:var(--accent-soft)}
     <div><label>母乳 1分 ≒ ミルク ml</label><input type="number" id="sCoef" min="0" step="0.5"></div>
     <div><label>母乳の換算は最大何分まで</label><input type="number" id="sBfCap" min="0"></div>
   </div>
-  <div class="note">母乳の実際の摂取量は測れない（1回30〜135mlとばらつく）。係数は仮置き。体重増が20〜30g/日に届かなければ係数を下げる（＝ミルクを増やす）、吐き戻しが多ければ上げる。</div>
+  <div class="note">母乳の実際の摂取量は測れない（1回30〜135mlとばらつく）。係数は仮置き。成長曲線で帯を下に越えたら係数を下げる（＝ミルクを増やす）、吐き戻しが多ければ上げる。</div>
 
   <h3>1日の範囲</h3>
   <div class="grid2">
-    <div><label>1日下限 ml/kg</label><input type="number" id="sFloorPerKg" min="50" step="10"></div>
-    <div><label>1日上限 ml/kg</label><input type="number" id="sCapPerKg" min="100" step="10"></div>
+    <div><label>正常範囲の下端 ml/kg</label><input type="number" id="sFloorPerKg" min="50" step="10"></div>
+    <div><label>正常範囲の上端 ml/kg</label><input type="number" id="sCapPerKg" min="100" step="10"></div>
   </div>
-  <div class="note">下限150・上限200はNHSの正常範囲（〜3ヶ月に適用）。3〜6ヶ月は120〜170、6ヶ月〜は90〜140に自動で切り替わる。1日の目標は「1回量×回数」。</div>
+  <div class="note">150〜200ml/kgはNHSの正常範囲（〜3ヶ月に適用）。3〜6ヶ月は120〜170、6ヶ月〜は90〜140に自動で切り替わる。絶対上限はAAPの1日960ml。1日の目標は「1回量×回数」。量が多すぎるかどうかの最終判断は成長曲線（帯を上に越えたら減らす）。</div>
   <div class="grid2">
     <div><label>胃内容の半減期 ミルク 分</label><input type="number" id="sHalfF" min="10"></div>
     <div><label>胃内容の半減期 母乳・搾乳 分</label><input type="number" id="sHalfB" min="10"></div>
@@ -282,12 +290,9 @@ table.st tr.cur td{background:var(--accent-soft)}
   <div class="note">各段階の1日量は「基準体重のときの量」。体重連動オンなら実体重に比例させる（例：750ml@3.75kg → 3.49kgで698 → 8回で80ml）。1回量＝1日量（体重で比例）÷定刻の個数、10ml単位に切り捨て。1日量の初期値は明治ほほえみ・グリコ アイクレオ・たまひよ（助産師監修）・京都市資料の「1回量×回数」の中央値：8〜14日600@3.0kg、15〜29日750@3.75kg、1〜2ヶ月870@4.7kg、2〜3ヶ月855@5.7kg、3〜4ヶ月1000@6.6kg、4〜5ヶ月1050@6.9kg、5ヶ月〜1050〜1075。AAPの上限960mlと体重×200mlで頭打ち。生後0〜7日は日数×10ml/回を自動適用。</div>
   <div class="actions"><button class="btn sm" onclick="resetStages()">表を初期値に戻す</button></div>
 
-  <h3>体重（計算に使用）</h3>
-  <div class="grid2">
-    <div><label>最新の体重 kg（例 3.22）</label><input type="number" id="sWkg" step="0.01" min="0"></div>
-    <div><label>計測日</label><input type="date" id="sWdate"></div>
-  </div>
-  <div class="note">ぴよログに体重を記録していればそちらを優先。どちらも無ければ月齢レンジの中央値で計算する。</div>
+  <h3>体重の記録（成長曲線・1回量の計算に使用）</h3>
+  <textarea id="sWeights" placeholder="2026-10-20 3.22&#10;2026-11-05 3490" style="min-height:100px;font-family:ui-monospace,monospace"></textarea>
+  <div class="note">1行に「日付 体重」。kgでもgでも可（例 11/5 3490）。1行目は出生体重。ぴよログに体重を記録すると自動で追加される。最新の体重を1回量の計算に使う。健診の体重はここに入れる。</div>
 
   <h3>夫婦で同じ設定にする</h3>
   <div class="actions">
@@ -316,7 +321,11 @@ table.st tr.cur td{background:var(--accent-soft)}
     <a href="https://www.nhs.uk/baby/caring-for-a-newborn/soothing-a-crying-baby" target="_blank" rel="noopener">NHS 泣く理由と対処</a> /
     <a href="https://www.hse.ie/conditions/constipation-children/constipation-in-babies-0-to-6-months/" target="_blank" rel="noopener">HSE 0〜6ヶ月の便秘</a> /
     <a href="https://www.healthiertogether.nhs.uk/new-parent-and-baby/straining-to-poo" target="_blank" rel="noopener">NHS いきみ（乳児排便困難）</a> /
-    <a href="https://www.piyolog.com/app/piyolog/data_feed/ja/" target="_blank" rel="noopener">ぴよログ データフィード仕様</a>
+    <a href="https://www.piyolog.com/app/piyolog/data_feed/ja/" target="_blank" rel="noopener">ぴよログ データフィード仕様</a> /
+    <a href="https://www.who.int/tools/child-growth-standards/standards/weight-for-age" target="_blank" rel="noopener">WHO 成長標準 体重（女児 LMS表）</a> /
+    <a href="https://pubmed.ncbi.nlm.nih.gov/29052309/" target="_blank" rel="noopener">Zheng 2018 急速体重増加（Δz&gt;0.67）と後年の肥満</a> /
+    <a href="https://www.nice.org.uk/guidance/NG75/chapter/recommendations" target="_blank" rel="noopener">NICE NG75 体重増加不良の基準</a> /
+    <a href="https://doi.org/10.1542/peds.2008-1315j" target="_blank" rel="noopener">Li 2008 哺乳瓶を飲みきる習慣と過体重</a>
   </div>
 </div>
 
@@ -353,7 +362,19 @@ const DEFAULTS={
   coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true, typeLabels:'Custom1=保湿', careSlots:'0,8,16',
   stages:DEFAULT_STAGES,
   wkg:null, wdate:'',
+  weights:[{d:'2026-10-20',kg:3.22,src:'birth'}], // 体重履歴 {d:'YYYY-MM-DD',kg,src:birth|piyolog|manual}
 };
+// WHO Child Growth Standards 女児 weight-for-age LMS（週0〜13、月0〜12）。出典 who.int/tools/child-growth-standards
+const WHO_WFA_G={weeks:[[0.3809,3.2322,0.14171],[0.2671,3.3388,0.146],[0.2304,3.5693,0.14339],[0.2024,3.8352,0.1406],[0.1789,4.0987,0.13805],[0.1582,4.3476,0.13583],[0.1395,4.5793,0.13392],[0.1224,4.795,0.13228],[0.1065,4.9959,0.13087],[0.0918,5.1842,0.12966],[0.0779,5.3618,0.12861],[0.0648,5.5295,0.1277],[0.0525,5.6883,0.12691],[0.0407,5.8393,0.12622]],months:[[0.3809,3.2322,0.14171],[0.1714,4.1873,0.13724],[0.0962,5.1282,0.13],[0.0402,5.8458,0.12619],[-0.005,6.4237,0.12402],[-0.043,6.8985,0.12274],[-0.0756,7.297,0.12204],[-0.1039,7.6422,0.12178],[-0.1288,7.9487,0.12181],[-0.1507,8.2254,0.12199],[-0.17,8.48,0.12223],[-0.1872,8.7192,0.12247],[-0.2024,8.9481,0.12268]]};
+function lmsAt(days){
+  const lerp=(a,b,f)=>[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f];
+  if(days<=91){const w=Math.max(0,days)/7;const i=Math.min(12,Math.floor(w));return lerp(WHO_WFA_G.weeks[i],WHO_WFA_G.weeks[i+1],w-i);}
+  const m=Math.min(12,days/30.4375);const i=Math.min(11,Math.floor(m));return lerp(WHO_WFA_G.months[i],WHO_WFA_G.months[i+1],m-i);
+}
+function zOf(kg,days){const [L,M,S_]=lmsAt(days);return (Math.pow(kg/M,L)-1)/(L*S_);}
+function kgAtZ(z,days){const [L,M,S_]=lmsAt(days);return M*Math.pow(1+L*S_*z,1/L);}
+function normCdf(z){const t=1/(1+0.2316419*Math.abs(z));const d=0.3989423*Math.exp(-z*z/2);let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+const PCT_Z={3:-1.8808,15:-1.0364,50:0,85:1.0364,97:1.8808};
 let S=loadSettings();
 function loadSettings(){
   try{
@@ -370,6 +391,11 @@ function loadSettings(){
     delete o.offset;delete o.adjLog;delete o.autoAdj;delete o.lastAutoDate;
     if((o.stageVersion||1)<STAGE_VERSION&&!o.stagesEdited){stages=DEFAULT_STAGES.map(s=>({...s}));}
     o.stageVersion=STAGE_VERSION;
+    // v34: 体重履歴。旧 wkg/wdate を取り込む
+    if(!Array.isArray(o.weights)){
+      o.weights=DEFAULTS.weights.map(w=>({...w}));
+      if(o.wkg&&o.wdate){let kg=Number(o.wkg);if(kg>50)kg=kg/1000;if(!o.weights.some(w=>w.d===o.wdate))o.weights.push({d:o.wdate,kg:Math.round(kg*1000)/1000,src:o.wsrc||'manual'});}
+    }
     return Object.assign({},DEFAULTS,o,{stages});
   }catch(e){return Object.assign({},DEFAULTS,{stages:DEFAULT_STAGES.map(s=>({...s}))});}
 }
@@ -501,21 +527,25 @@ function render(){
   const recs=records();
   // 体重：フィードのWeight記録と設定値のうち新しい方
   KG=null;KGSRC='';
-  {const w=recs.filter(r=>r.type==='Weight'&&val(r)!=null).pop();
-   const sw=(S.wkg&&S.wdate)?{kg:Number(S.wkg),t:new Date(S.wdate+'T12:00:00')}:null;
-   // フィードで拾った体重は端末に保存し、フィードから消えても使う
-   if(w){const wk=val(w)>50?val(w)/1000:val(w);const d=w.t.getFullYear()+'-'+pad(w.t.getMonth()+1)+'-'+pad(w.t.getDate());
-     if(!sw||w.t>=sw.t){if(S.wkg!==wk||S.wdate!==d){S.wkg=wk;S.wdate=d;S.wsrc='piyolog';saveSettings();}}}
-   const sw2=(S.wkg&&S.wdate)?{kg:Number(S.wkg),t:new Date(S.wdate+'T12:00:00')}:null;
-   if(sw2){KG=sw2.kg;KGSRC=(S.wsrc==='piyolog'?'ぴよログ ':'設定 ')+S.wdate.slice(5).replace('-','/');}
-   if(KG&&KG>50)KG=KG/1000; // gで入力された場合
-   if(KG)KG=Math.round(KG*100)/100;}
+  {// フィードのWeight記録は全て履歴に保存（フィードから消えても使う）。最新を計算に使う
+   let changed=false;S.weights=Array.isArray(S.weights)?S.weights:[];
+   for(const w of recs.filter(r=>r.type==='Weight'&&val(r)!=null)){
+     const kg=Math.round((val(w)>50?val(w)/1000:val(w))*1000)/1000;const d=w.t.getFullYear()+'-'+pad(w.t.getMonth()+1)+'-'+pad(w.t.getDate());
+     const ex=S.weights.find(x=>x.d===d);
+     if(!ex){S.weights.push({d,kg,src:'piyolog'});changed=true;}
+     else if(ex.src==='piyolog'&&ex.kg!==kg){ex.kg=kg;changed=true;}
+   }
+   S.weights.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
+   const lastW=S.weights[S.weights.length-1];
+   if(lastW){if(S.wkg!==lastW.kg||S.wdate!==lastW.d){S.wkg=lastW.kg;S.wdate=lastW.d;S.wsrc=lastW.src;changed=true;}
+     KG=Math.round(lastW.kg*100)/100;KGSRC=(lastW.src==='piyolog'?'ぴよログ ':lastW.src==='birth'?'出生 ':'設定 ')+lastW.d.slice(5).replace('-','/');}
+   if(changed)saveSettings();}
   const bi=baseInfo(days);$('hSub').textContent='生後'+days+'日・'+stageLabel(days)+'・基準'+bi.ml+'ml'+(KG?'（'+KG+'kg '+KGSRC+'）':'（体重未設定）');
   const al=[];
   if(lastErr)al.push(['warn',lastErr]);
   if(S.demo)al.push(['info','デモデータ表示中。設定でオフにする。']);
   if(!configured){$('alerts').innerHTML='';return;}
-  if(bi.over)al.push(['warn','手動設定の1回量'+bi.ml+'ml×'+bi.n+'回＝'+(bi.ml*bi.n)+'mlは1日上限'+dailyCap(days)+'ml（体重×'+perKgRange(days)[1]+'）を超えている。']);
+  if(bi.over)al.push(['warn','手動設定の1回量'+bi.ml+'ml×'+bi.n+'回＝'+(bi.ml*bi.n)+'mlは正常範囲の上端'+dailyCap(days)+'ml（体重×'+perKgRange(days)[1]+'）を超えている。']);
   if(!KG)al.push(['info','体重が未設定。⚙で体重を入れるかぴよログに体重を記録すると、体重×150ml/kgで計算する。']);
 
   const feeds=recs.filter(r=>FEEDTYPES.has(r.type));
@@ -759,7 +789,8 @@ function render(){
   }
   $('todayLabel').textContent=(now.getMonth()+1)+'/'+now.getDate()+' 0:00〜';
   $('tdTotal').textContent=tTotal;
-  $('tdRange').textContent='1日の必要量：下限'+low+'・目標'+target+'・上限'+high+' ml（目標＝1回'+baseFormulaOnly(days)+'ml×'+slotCount(stg)+'回'+(KG?'、下限/上限＝'+KG+'kg×'+perKgRange(days)[0]+'/'+perKgRange(days)[1]+(high<KG*perKgRange(days)[1]?'、上限はAAPの960':''):'')+'）';
+  const hardCap=960;const capped=KG&&round10(KG*perKgRange(days)[1])>hardCap;
+  $('tdRange').textContent='1日：下限'+low+'・目標'+target+'・正常範囲の上端'+high+' ml（目標＝1回'+baseFormulaOnly(days)+'ml×'+slotCount(stg)+'回'+(KG?'、範囲＝'+KG+'kg×'+perKgRange(days)[0]+'〜'+perKgRange(days)[1]+'ml/kg'+(capped?'、上端はAAPの絶対上限960':''):'')+'）。上端超えは即危険ではないが、成長曲線で帯を上に越えていれば減らす。';
   {
     const Wb=340,Hb=58,pl=6,pr=6;const maxV=high;
     const xb=v=>pl+(Math.min(v,maxV)/maxV)*(Wb-pl-pr);
@@ -779,13 +810,13 @@ function render(){
       '<line x1="'+xb(high)+'" y1="14" x2="'+xb(high)+'" y2="36" stroke="var(--text)"/>'+
       '<text x="'+xb(low)+'" y="47" font-size="9" text-anchor="middle" fill="var(--text)">下限'+low+'</text>'+
       '<text x="'+xb(target)+'" y="57" font-size="9" text-anchor="middle" fill="var(--text)">▲目標'+target+'</text>'+
-      '<text x="'+xb(high)+'" y="47" font-size="9" text-anchor="end" fill="var(--text)">上限'+high+'</text>'+
+      '<text x="'+xb(high)+'" y="47" font-size="9" text-anchor="end" fill="var(--text)">'+(capped?'上限':'上端')+high+'</text>'+
       '<text x="'+pl+'" y="47" font-size="9" text-anchor="start" fill="var(--muted)">0</text>'+
       // expected-now marker
       '<line x1="'+xb(expectNow)+'" y1="8" x2="'+xb(expectNow)+'" y2="18" stroke="var(--muted)" stroke-width="1.5"/>'+
       (over?'':'<text x="'+xb(expectNow)+'" y="7" font-size="9" text-anchor="'+(expectNow>high*0.8?'end':'middle')+'" fill="var(--muted)">今の時刻の目安'+expectNow+'</text>')+
       // current value label
-      (over?'<text x="'+(Wb-pr)+'" y="7" font-size="10" text-anchor="end" fill="var(--warn)" font-weight="700">上限超過 +'+(tTotal-high)+'ml</text>':'')+
+      (over?'<text x="'+(Wb-pr)+'" y="7" font-size="10" text-anchor="end" fill="var(--warn)" font-weight="700">'+(capped?'上限':'上端')+'超過 +'+(tTotal-high)+'ml</text>':'')+
       '</svg>';
     $('tdBar2').innerHTML=svgb;
   }
@@ -839,7 +870,9 @@ function render(){
       '<div class="note">順番はぴよログの記録から機械的に並べた目安。泣き方・顔色・体の様子はあなたが見て判断する。</div>';
     if($('cryBox')&&!$('cryBox').classList.contains('hidden'))$('cryBox').innerHTML=CRYHTML;
   }
+  const gi=growthInfo(days,{daily:bi.daily,cap:cap,tTotal,high});
   let tdn=[];
+  if(gi.level==='up'||gi.level==='see'||gi.level==='down')tdn.push('成長曲線：'+gi.short);
   {
     const diff=tTotal-expectNow;
     tdn.push('今の時刻の目安'+expectNow+'mlに対して'+(diff>=0?'+':'')+Math.round(diff)+'ml。');
@@ -847,18 +880,16 @@ function render(){
       tdn.push('残り'+leftSlots+'回で下限まであと'+needLow+'（1回'+Math.ceil(needLow/leftSlots/10)*10+'以上）、目標まであと'+needTgt+'（1回'+Math.ceil(needTgt/leftSlots/10)*10+'）、上限まで1回'+Math.max(0,Math.floor(roomHigh/leftSlots/10)*10)+'まで。');}
     else if(tTotal<low)tdn.push('定刻は終了。下限まであと'+(low-tTotal)+'ml。');
   }
-  if(tTotal>high)al.push(['warn','今日の合計（ミルク換算）が上限'+high+'mlを超過（'+tTotal+'ml）']);
+  if(tTotal>hardCap)al.push(['warn','今日の合計（ミルク換算）がAAPの1日上限960mlを超過（'+tTotal+'ml）。これ以上は足さない。']);
+  else if(tTotal>high)al.push(['warn','今日の合計（ミルク換算）が正常範囲の上端'+high+'ml（体重×'+perKgRange(days)[1]+'）を超過（'+tTotal+'ml）。満腹サインで止める。']);
   if(tV>=3)tdn.push('吐き戻し'+tV+'回。増えていればその時間帯を10ml減らす（設定の増減）。');
   if(!FEED||!FEED.range||new Date(FEED.range.from)>d0)tdn.push('フィードは直近24時間分。0時より前の記録は含まれないことがある。');
-  // 体重
-  const w=recs.filter(r=>r.type==='Weight'&&val(r)!=null).pop();
-  if(w&&S.wkg&&S.wdate){const dd=(w.t-new Date(S.wdate+'T00:00:00'))/86400000;if(dd>=1){const g=Math.round((val(w)-Number(S.wkg))*1000/dd);tdn.push('体重 '+val(w)+'kg（'+fmtHM(w.t)+'）。前回から1日'+g+'g増。目安20〜30g。');}}
-  else if(w)tdn.push('体重 '+val(w)+'kg の記録あり。');
   {const cl=customLabels();const parts=[];for(const k in cl){const a=today.filter(r=>r.type===k);const lastA=recs.filter(r=>r.type===k).pop();parts.push(cl[k]+' 今日'+a.length+'回'+(lastA?'（最終 '+fmtHM(lastA.t)+'）':''));}
    const lp=recs.filter(r=>r.type==='Poop').pop();parts.push('うんち 今日'+today.filter(r=>r.type==='Poop').length+'回'+(lp?'（最終 '+fmtHM(lp.t)+'）':''));
    parts.push('おしっこ 今日'+today.filter(r=>r.type==='Pee').length+'回');
    if(parts.length)tdn.unshift(parts.join('、')+'。');}
   $('tdNote').textContent=tdn.join(' ');
+  renderGrowth(gi,days);
 
   // タイムライン
   const cl=customLabels();
@@ -869,6 +900,78 @@ function render(){
   $('alerts').innerHTML=al.map(a=>'<div class="alert '+a[0]+'">'+escapeHtml(a[1])+'</div>').join('');
 }
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ========== 成長曲線（WHO 女児 weight-for-age） ========== */
+// 判定基準：
+//  帯（centile space）＝z 0.67（WHO/UK成長チャートの隣り合う線の間隔）
+//  上に1本以上越えた（Δz≧+0.67）＝急速体重増加 RWG。後年の過体重/肥満オッズ3.66倍（Zheng 2018 メタ解析）→ 増やさない
+//  下に2本以上越えた（Δz≦−1.34、出生9〜91パーセンタイルの場合）または2パーセンタイル未満 ＝ NICE NG75 の要評価基準 → 受診
+//  下に1本越えた（Δz≦−0.67）＝注意。増やす方向
+function growthInfo(days,ctx){
+  const b0=new Date(S.birth+'T00:00:00');
+  const hist=(S.weights||[]).filter(w=>Number(w.kg)>0&&/^\d{4}-\d{2}-\d{2}$/.test(w.d))
+    .map(w=>({d:w.d,kg:Number(w.kg),src:w.src,ad:Math.round((new Date(w.d+'T00:00:00')-b0)/86400000)}))
+    .filter(w=>w.ad>=0&&w.ad<=365).sort((a,b)=>a.ad-b.ad);
+  const gi={hist,level:'na',short:'',text:'',kv:[]};
+  if(!hist.length){gi.text='体重の記録がない。⚙の「体重の記録」に出生体重と健診の体重を入れる。';return gi;}
+  for(const w of hist){w.z=zOf(w.kg,w.ad);w.p=normCdf(w.z)*100;}
+  const last=hist[hist.length-1],first=hist[0];
+  const dz=last.z-first.z;
+  let prev=null;for(let i=hist.length-2;i>=0;i--){if(last.ad-hist[i].ad>=3){prev=hist[i];break;}}
+  let vel=null,whoVel=null;
+  if(prev){const dd=last.ad-prev.ad;vel=Math.round((last.kg-prev.kg)*1000/dd);whoVel=Math.round((lmsAt(last.ad)[1]-lmsAt(prev.ad)[1])*1000/dd);}
+  const fp=v=>v<1?'<1':v>99?'>99':String(Math.round(v));
+  const fz=v=>(v>=0?'+':'')+v.toFixed(2);
+  Object.assign(gi,{last,first,dz,vel,whoVel,prev});
+  gi.kv=[
+    ['最新',last.kg.toFixed(2)+'<small style="font-size:12px"> kg '+last.d.slice(5).replace('-','/')+'（生後'+last.ad+'日）</small>'],
+    ['パーセンタイル',fp(last.p)+'<small style="font-size:12px"> %（z '+fz(last.z)+'）</small>'],
+    ['出生からの変化','z '+fz(dz)+'<small style="font-size:12px">（出生'+fp(first.p)+'%→'+fp(last.p)+'%、帯'+(dz>=0?'+':'')+(dz/0.67).toFixed(1)+'本）</small>'],
+    ['増加速度',vel==null?'—<small style="font-size:12px"> 3日以上離れた2点が必要</small>':vel+'<small style="font-size:12px"> g/日（'+prev.d.slice(5).replace('-','/')+'→'+last.d.slice(5).replace('-','/')+'。同じ帯を保つなら'+whoVel+' g/日）</small>'],
+  ];
+  const stale=days-last.ad;const nb=Math.floor(Math.abs(dz)/0.67+1e-9);
+  const intakeHigh=ctx&&ctx.daily>ctx.cap;
+  if(last.ad<7){gi.level='na';gi.short='生後1週間は判定なし';gi.text='生後1週間は体重が減るのが普通（出生体重の7〜10%まで）。判定は生後2週以降の体重から。';}
+  else if(last.p<2||dz<=-1.34){gi.level='see';gi.short=(last.p<2?'2パーセンタイル未満':'帯を2本下に越えた')+'。小児科・健診で相談。';gi.text=gi.short+' NICE NG75の「体重増加不良の評価が必要」な基準に該当する。量は目標より減らさない。不足分は必ずあげる。';}
+  else if(dz<=-0.67){gi.level='down';gi.short='帯を'+nb+'本下に越えた（z '+fz(dz)+'）。増やす方向。';gi.text=gi.short+' 1日合計が目標を下回る日が続くなら1回量を+10。母乳の回は粉ミルクの不足分を省かない。もう1本下がれば受診。';}
+  else if(dz>=0.67){gi.level='up';gi.short='帯を'+nb+'本上に越えた（z '+fz(dz)+'）。増やさない。';gi.text=gi.short+' 急速体重増加（Δz>0.67）は後年の過体重オッズ3.7倍（Zheng 2018）。飲みきらせず満腹サインで止める。'+(intakeHigh?' 今の設定は正常範囲の上端を超えている。1回量を−10。':' 1回量は今のまま上げない。');}
+  else{gi.level='ok';gi.short='出生時の帯に沿っている（z '+fz(dz)+'）。今の量を維持。';gi.text=gi.short+' 上下に0.67越えたら表示が変わる。';}
+  if(stale>21&&last.ad>=7)gi.text+=' 最後の計測から'+stale+'日。体重を測って⚙に入れる。';
+  return gi;
+}
+function renderGrowth(gi,days){
+  const col={na:'var(--muted)',ok:'var(--accent)',up:'var(--warn)',down:'var(--warn)',see:'var(--warn)'}[gi.level];
+  $('grLabel').textContent='WHO標準 女児';
+  $('grVerdict').innerHTML='<div style="font-weight:700;color:'+col+'">'+escapeHtml(gi.short||'データ不足')+'</div>';
+  $('grKv').innerHTML=gi.kv.map(k=>'<div><div class="k">'+k[0]+'</div><div class="v" style="font-size:16px">'+k[1]+'</div></div>').join('');
+  $('grNote').textContent=gi.text+' 帯＝WHOチャートの3・15・50・85・97パーセンタイル線の間隔（z 0.67）。';
+  const hist=gi.hist||[];
+  const W=340,H=215,pl=30,pr=28,pt=8,pb=22;
+  const xmax=Math.min(365,Math.max(42,Math.ceil((days+14)/7)*7));
+  const kgs=hist.map(w=>w.kg);
+  const yMin=Math.floor((Math.min(kgAtZ(PCT_Z[3],0),...kgs)-0.15)*2)/2;
+  const yMax=Math.ceil((Math.max(kgAtZ(PCT_Z[97],xmax),...kgs)+0.15)*2)/2;
+  const x=d=>pl+d/xmax*(W-pl-pr),y=kg=>pt+(1-(kg-yMin)/(yMax-yMin))*(H-pt-pb);
+  const step=xmax<=91?1:3;
+  const pts=z=>{const a=[];for(let d=0;d<=xmax;d+=step)a.push(x(d).toFixed(1)+','+y(kgAtZ(z,d)).toFixed(1));if((xmax%step)!==0)a.push(x(xmax).toFixed(1)+','+y(kgAtZ(z,xmax)).toFixed(1));return a;};
+  const band=(zl,zh,fill)=>'<polygon points="'+pts(zl).join(' ')+' '+pts(zh).reverse().join(' ')+'" fill="'+fill+'"/>';
+  let s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">';
+  s+=band(PCT_Z[3],PCT_Z[97],'var(--ok-soft)')+band(PCT_Z[15],PCT_Z[85],'var(--accent-soft)');
+  for(const p of [3,15,50,85,97]){s+='<polyline points="'+pts(PCT_Z[p]).join(' ')+'" fill="none" stroke="var(--muted)" stroke-width="'+(p===50?1.2:0.7)+'"'+(p===50?'':' stroke-dasharray="3,2"')+'/>';
+    s+='<text x="'+(W-pr+3)+'" y="'+(y(kgAtZ(PCT_Z[p],xmax))+3).toFixed(1)+'" font-size="8" fill="var(--muted)">'+p+'</text>';}
+  // axes
+  for(let kg=yMin;kg<=yMax+1e-9;kg+=0.5){s+='<text x="'+(pl-3)+'" y="'+(y(kg)+3).toFixed(1)+'" font-size="8" text-anchor="end" fill="var(--muted)">'+kg.toFixed(1)+'</text><line x1="'+pl+'" y1="'+y(kg).toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y(kg).toFixed(1)+'" stroke="var(--line)" stroke-width="0.5"/>';}
+  if(xmax<=91){for(let d=0;d<=xmax;d+=7){s+='<text x="'+x(d).toFixed(1)+'" y="'+(H-pb+11)+'" font-size="8" text-anchor="middle" fill="var(--muted)">'+(d/7)+'</text>';}s+='<text x="'+(W-pr)+'" y="'+(H-1)+'" font-size="8" text-anchor="end" fill="var(--muted)">週</text>';}
+  else{for(let m=0;m*30.4375<=xmax;m++){s+='<text x="'+x(m*30.4375).toFixed(1)+'" y="'+(H-pb+11)+'" font-size="8" text-anchor="middle" fill="var(--muted)">'+m+'</text>';}s+='<text x="'+(W-pr)+'" y="'+(H-1)+'" font-size="8" text-anchor="end" fill="var(--muted)">ヶ月</text>';}
+  // today
+  if(days<=xmax)s+='<line x1="'+x(days).toFixed(1)+'" y1="'+pt+'" x2="'+x(days).toFixed(1)+'" y2="'+(H-pb)+'" stroke="var(--text)" stroke-dasharray="2,3" stroke-width="0.8"/>';
+  // data
+  if(hist.length){s+='<polyline points="'+hist.map(w=>x(w.ad).toFixed(1)+','+y(w.kg).toFixed(1)).join(' ')+'" fill="none" stroke="'+col+'" stroke-width="1.5"/>';
+    for(const w of hist)s+='<circle cx="'+x(w.ad).toFixed(1)+'" cy="'+y(w.kg).toFixed(1)+'" r="3" fill="'+col+'"/>';
+    const l=hist[hist.length-1];s+='<text x="'+(x(l.ad)+5).toFixed(1)+'" y="'+(y(l.kg)-5).toFixed(1)+'" font-size="9" font-weight="700" fill="var(--text)">'+l.kg.toFixed(2)+'</text>';}
+  s+='</svg>';
+  $('grChart').innerHTML=s;
+}
 
 /* ========== 入力イベント ========== */
 document.addEventListener('click',e=>{
@@ -901,7 +1004,7 @@ function openSettings(){
   $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sWindow').value=S.window;$('sBfDefault').value=S.bfDefault;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
   $('sCoef').value=S.coef;
   {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=bi.ml;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;updateMlNowNote();}$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sFloorPerKg').value=S.floorPerKg;$('sHalfB').value=S.halfBreast;
-  $('sWkg').value=S.wkg==null?'':S.wkg;$('sWdate').value=S.wdate||'';
+  $('sWeights').value=(S.weights||[]).map(w=>w.d+' '+w.kg+(w.src==='piyolog'?'  # ぴよログ':w.src==='birth'?'  # 出生':'')).join('\n');
   renderStageTable(S.stages);
   {const c={};for(const r of records()){const k=r.type+(r.subType?'/'+r.subType:'');c[k]=(c[k]||0)+1;}
    const keys=Object.keys(c).sort();$('feedTypes').textContent=keys.length?keys.map(k=>k+'（'+typeJa(k.split('/')[0])+'）'+c[k]+'件').join('、'):'データなし';
@@ -929,6 +1032,19 @@ function readStageTable(){
   const rows={};$('stageTable').querySelectorAll('input').forEach(inp=>{const i=inp.dataset.i,k=inp.dataset.k;rows[i]=rows[i]||{};rows[i][k]=k==='slots'?inp.value:Number(inp.value);});
   return Object.values(rows).filter(r=>!isNaN(r.from)).sort((a,b)=>a.from-b.from);
 }
+function parseWeights(text){
+  const out=[];const by=new Date(S.birth+'T00:00:00').getFullYear();
+  for(let line of String(text).split(/\n/)){
+    line=line.replace(/#.*$/,'').trim();if(!line)continue;
+    const m=line.match(/^(?:(\d{4})[\/\-.])?(\d{1,2})[\/\-.](\d{1,2})\s*[,\s]\s*([\d.]+)\s*(kg|g)?$/i);if(!m)return null;
+    let y=m[1]?Number(m[1]):by;let d=new Date(y,Number(m[2])-1,Number(m[3]));
+    if(!m[1]&&d<new Date(S.birth+'T00:00:00'))d=new Date(y+1,Number(m[2])-1,Number(m[3]));
+    let kg=Number(m[4]);if(isNaN(kg)||kg<=0)return null;if(m[5]&&m[5].toLowerCase()==='g')kg=kg/1000;else if(kg>50)kg=kg/1000;
+    const key=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    const i=out.findIndex(o=>o.d===key);const rec={d:key,kg:Math.round(kg*1000)/1000};if(i>=0)out[i]=rec;else out.push(rec);
+  }
+  return out.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
+}
 function resetStages(){S.stagesEdited=false;renderStageTable(DEFAULT_STAGES.map(s=>({...s})));}
 function closeSettings(save){
   if(save){
@@ -938,7 +1054,10 @@ function closeSettings(save){
     S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
     S.coef=Number($('sCoef').value);S.linkWeight=$('sLink').checked;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
-    {let w=$('sWkg').value===''?null:Number($('sWkg').value);if(w&&w>50)w=w/1000;if(w!==S.wkg||$('sWdate').value!==S.wdate)S.wsrc='manual';S.wkg=w;}S.wdate=$('sWdate').value;
+    {const ws=parseWeights($('sWeights').value);if(ws===null){alert('体重の記録の形式が違う行がある。「2026-11-05 3.49」のように1行ずつ。');return;}
+     const old={};for(const w of (S.weights||[]))old[w.d]=w;
+     S.weights=ws.map(w=>({d:w.d,kg:w.kg,src:old[w.d]&&Math.abs(old[w.d].kg-w.kg)<0.0005?old[w.d].src:(w.d===S.birth?'birth':'manual')}));
+     const lw=S.weights[S.weights.length-1];S.wkg=lw?lw.kg:null;S.wdate=lw?lw.d:'';S.wsrc=lw?lw.src:'';}
     {const stg=readStageTable();if(stg.length){
        stg.forEach((r,i)=>{const o=S.stages[i];if(o&&o.from===r.from&&o.daily===r.daily&&o.kg===r.kg&&o.slots===r.slots){r.userSet=!!o.userSet;}else{r.userSet=true;S.stagesEdited=true;}});
        S.stages=stg;}}
