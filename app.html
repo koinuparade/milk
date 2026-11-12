@@ -75,8 +75,11 @@ ul.tl li.done{opacity:.45}
 ul.tl li.miss{opacity:.6}
 ul.tl li.next .ty{font-weight:700;color:var(--accent)}
 ul.tl .st{font-size:12px;font-weight:700;color:var(--ok)}
-.bandh{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:14px;color:var(--muted);font-weight:600;cursor:pointer}
-.bandh.cur{color:var(--text)}
+ul.tl li.bd{background:var(--tab);margin:6px -14px 0;padding:6px 14px;border-top:0;font-weight:700}
+ul.tl li.bd:first-child{margin-top:0}
+ul.tl li.bd .muted{font-weight:400;font-size:12px}
+ul.tl li.now{padding:3px 0;border-top:2px solid var(--accent);color:var(--accent);font-weight:700;font-size:12px}
+ul.tl li.now+li{border-top:0}
 .muted{color:var(--muted);font-size:13px}
 .note{font-size:12px;color:var(--muted);margin-top:6px}
 .hyp{border-top:1px solid var(--line);padding:8px 0}
@@ -211,7 +214,7 @@ table.st tr.cur td{background:var(--accent-soft)}
   </div>
 
   <div class="card">
-    <div class="row"><h2>タスク</h2><span class="muted" id="tkLabel"></span></div>
+    <div class="row"><h2>スケジュール</h2><span class="muted" id="tkLabel"></span></div>
     <div class="tabs" style="margin-top:4px">
       <button id="tabTP">パパ</button>
       <button id="tabTM">ママ</button>
@@ -529,7 +532,7 @@ function demoFeed(){
 }
 
 /* ========== 画面状態 ========== */
-let UI={mode:null,bfMin:null,ebm:null,ebmB:null,outManual:null,autoKey:'',taskTab:null,taskOpen:{}};
+let UI={mode:null,bfMin:null,ebm:null,ebmB:null,outManual:null,autoKey:'',taskTab:null};
 function applyTheme(){document.documentElement.setAttribute('data-theme','light');}
 
 function extraFormula(list,slotList){ // 定刻ごとに最も近い1件を定刻分とみなし、残りを定刻外とする
@@ -926,18 +929,18 @@ function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'
 // h は時刻（小数可: 21.5=21:30）。k は自動済判定に使う記録種別: feed=授乳 care=保湿 bath=沐浴 pump=搾乳
 const BANDS=[
   {from:20,to:8,duty:'papa',
-   papa:[{h:20,t:'ミルク80＋げっぷ',k:'feed'},{h:21.5,t:'ママ搾乳→冷蔵',k:'pump'},{h:23,t:'ミルク80（搾乳優先）',k:'feed'},{h:0,t:'保湿',k:'care'},{h:2,t:'ミルク80',k:'feed'},{h:3,t:'ママ搾乳→冷蔵',k:'pump'},{h:5,t:'ミルク80',k:'feed'},{h:7.5,t:'食洗機'}],
+   papa:[{h:20,t:'ミルク80＋げっぷ',k:'feed'},{h:21.5,t:'ママ搾乳→冷蔵',k:'pump'},{h:23,t:'ミルク80（搾乳優先）',k:'feed'},{h:0,t:'保湿',k:'care'},{h:2,t:'ミルク80',k:'feed'},{h:3,t:'ママ搾乳→冷蔵',k:'pump'},{h:5,t:'ミルク80',k:'feed'},
+         {h:7,t:'燃えるゴミ',dow:1},{h:7,t:'資源ごみ',dow:2},{h:7,t:'ダンボールごみ',dow:4},{h:7,t:'燃えるゴミ',dow:5},{h:7,t:'プラごみ',dow:6},{h:7.5,t:'食洗機'}],
    papaNote:'哺乳瓶はすすいで水切りカゴ',
    mama:[{h:21.5,t:'搾乳→冷蔵・就寝',k:'pump'},{h:3,t:'搾乳→冷蔵',k:'pump'}]},
   {from:8,to:18,duty:'mama',
    mama:[{h:8,t:'母乳→ミルク60・保湿',k:'feed'},{h:11,t:'母乳→ミルク60',k:'feed'},{h:14,t:'母乳→ミルク60',k:'feed'},{h:17,t:'母乳→ミルク60',k:'feed'}],
-   papa:[{t:'睡眠・洗濯'}]},
+   papa:[{h:8,t:'睡眠・洗濯'}]},
   {from:18,to:20,duty:'both',
-   both:[{h:18,t:'沐浴（ママ洗う／パパ補助）・保湿',k:'bath'},{h:18,t:'買い出し'},{h:18.5,t:'パパ赤ちゃん／ママ夕食準備'},{h:19,t:'夕食（パパ抱く）'},{h:19.5,t:'食洗機'},{h:19.75,t:'引き継ぎ'}]},
+   both:[{h:18,t:'沐浴・保湿',k:'bath'},{h:18,t:'買い出し'},{h:18.5,t:'夕食準備'},{h:19,t:'夕食（パパ抱く）'},{h:19.5,t:'夕食（ママ抱く）'},{h:19.5,t:'食洗機'}]},
 ];
 const DUTY_JA={papa:'パパ',mama:'ママ',both:'ふたり'};
 function bandHas(b,hd){return b.from<b.to?(hd>=b.from&&hd<b.to):(hd>=b.from||hd<b.to);}
-function bandLabel(b){return b.from+':00〜'+b.to+':00 '+DUTY_JA[b.duty];}
 function bandItems(b,who){return b.both||b[who]||[];}
 function fmtH(h){return pad(Math.floor(h))+':'+pad(Math.round((h%1)*60));}
 function itemDone(it,t,recs){
@@ -950,39 +953,49 @@ function itemDone(it,t,recs){
 function renderTasks(now,recs){
   const hd=now.getHours()+now.getMinutes()/60;
   const ci=BANDS.findIndex(b=>bandHas(b,hd));const cur=BANDS[ci];
-  // 現在の時間帯の開始日時と各項目の時刻
-  let start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),cur.from,0,0,0);
-  if(cur.from>cur.to&&hd<cur.from)start.setDate(start.getDate()-1);
-  const timeOf=it=>{if(it.h==null)return null;const d=new Date(start);if(cur.from>cur.to&&it.h<cur.from)d.setDate(d.getDate()+1);d.setHours(Math.floor(it.h),Math.round((it.h%1)*60),0,0);return d;};
-  const status=list=>list.map(it=>{const t=timeOf(it);const done=itemDone(it,t,recs);const miss=!done&&t&&t.getTime()+90*60000<=now.getTime();return {it,t,done,miss};});
+  // 各時間帯の開始日時（現在の帯は進行中のもの、他は次の回）と各項目の時刻
+  const startOf=b=>{const d=new Date(now.getFullYear(),now.getMonth(),now.getDate(),b.from,0,0,0);
+    if(b===cur){if(b.from>b.to&&hd<b.from)d.setDate(d.getDate()-1);}else if(d<=now)d.setDate(d.getDate()+1);return d;};
+  const timeOf=(b,it)=>{if(it.h==null)return null;const d=new Date(startOf(b));if(b.from>b.to&&it.h<b.from)d.setDate(d.getDate()+1);d.setHours(Math.floor(it.h),Math.round((it.h%1)*60),0,0);return d;};
+  const items=(b,who)=>bandItems(b,who).filter(it=>it.dow==null||timeOf(b,it).getDay()===it.dow); // 曜日指定の項目はその曜日だけ
+  const status=(b,list)=>list.map(it=>{const t=timeOf(b,it);const done=b===cur&&itemDone(it,t,recs);const miss=b===cur&&!done&&t&&t.getTime()+90*60000<=now.getTime();return {it,t,done,miss};});
   // 上部の一行：今の担当／次のタスク
-  {const st=status(bandItems(cur,cur.duty));const nx=st.find(s=>!s.done&&!s.miss&&s.t);
+  {const st=status(cur,items(cur,cur.duty));const nx=st.find(s=>!s.done&&!s.miss&&s.t);
    $('dutyNow').textContent=DUTY_JA[cur.duty];
    const nb=BANDS[(ci+1)%BANDS.length];
    $('dutyNext').textContent=nx?'次 '+fmtH(nx.it.h)+' '+nx.it.t:'次 '+nb.from+':00〜 '+DUTY_JA[nb.duty];}
   // カード
   const tab=UI.taskTab||(ROLE==='mama'?'mama':'papa');
   $('tabTP').classList.toggle('on',tab==='papa');$('tabTM').classList.toggle('on',tab==='mama');
-  $('tkLabel').textContent='いま '+bandLabel(cur);
-  let html='';
-  for(let k=0;k<BANDS.length;k++){
-    const i=(ci+k)%BANDS.length;const b=BANDS[i];const isCur=i===ci;
-    const open=isCur||UI.taskOpen[i];
-    if(!isCur)html+='<div class="bandh" data-b="'+i+'"><span>'+bandLabel(b)+'</span><span>'+(open?'▾':'▸')+'</span></div>';
-    if(!open)continue;
-    const list=bandItems(b,tab);let next=true;
-    const rows=(isCur?status(list):list.map(it=>({it}))).map(s=>{
-      let cls='';if(s.done)cls='done';else if(s.miss)cls='miss';else if(isCur&&next&&s.t){cls='next';next=false;}
-      return '<li class="'+cls+'"><span class="tm">'+(s.it.h!=null?fmtH(s.it.h):'')+'</span><span class="ty">'+s.it.t+'</span>'+(s.done?'<span class="st">済</span>':'')+'</li>';
-    });
-    html+='<ul class="tl">'+(rows.join('')||'<li class="muted">なし</li>')+'</ul>';
-    const note=b[tab+'Note'];if(note)html+='<div class="note">'+note+'</div>';
+  // 4時間前〜20時間後を時系列で表示。帯の切り替わりは見出し行、現在時刻に「いま」の線
+  const t0=now.getTime()-4*3600000,t1=now.getTime()+20*3600000;
+  $('tkLabel').textContent='';
+  const ev=[];
+  for(let d=-1;d<=1;d++)for(const b of BANDS){
+    const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,b.from,0,0,0);
+    const end=new Date(start);end.setHours(end.getHours()+((b.to-b.from+24)%24));
+    if(end<=t0||start>t1)continue;
+    ev.push({t:Math.max(start.getTime(),t0),o:0,hdr:b,note:b[tab+'Note']});
+    for(const it of bandItems(b,tab)){
+      if(it.h==null)continue;const t=new Date(start);if(b.from>b.to&&it.h<b.from)t.setDate(t.getDate()+1);t.setHours(Math.floor(it.h),Math.round((it.h%1)*60),0,0);
+      if(it.dow!=null&&t.getDay()!==it.dow)continue;if(t<t0||t>t1)continue;
+      const done=itemDone(it,t,recs);const miss=!done&&t.getTime()+90*60000<=now.getTime();
+      ev.push({t:t.getTime(),o:1,it,done,miss});
+    }
   }
-  $('tkBody').innerHTML=html;
+  ev.push({t:now.getTime(),o:2,nowLine:true});
+  ev.sort((a,b)=>a.t-b.t||a.o-b.o);
+  let html='';let next=true;
+  for(const e of ev){
+    if(e.hdr){html+='<li class="bd"><span class="tm">'+pad(e.hdr.from)+':00</span><span class="ty">'+DUTY_JA[e.hdr.duty]+(e.note?' <span class="muted">'+e.note+'</span>':'')+'</span></li>';continue;}
+    if(e.nowLine){html+='<li class="now"><span class="tm">'+fmtHM(now)+'</span><span class="ty">いま</span></li>';continue;}
+    let cls='';if(e.done)cls='done';else if(e.miss)cls='miss';else if(next){cls='next';next=false;}
+    html+='<li class="'+cls+'"><span class="tm">'+fmtHM(new Date(e.t))+'</span><span class="ty">'+e.it.t+'</span>'+(e.done?'<span class="st">済</span>':'')+'</li>';
+  }
+  $('tkBody').innerHTML='<ul class="tl">'+html+'</ul>';
 }
 $('tabTP').onclick=()=>{UI.taskTab='papa';render();};
 $('tabTM').onclick=()=>{UI.taskTab='mama';render();};
-$('tkBody').addEventListener('click',e=>{const h=e.target.closest('.bandh');if(!h)return;const i=h.dataset.b;UI.taskOpen[i]=!UI.taskOpen[i];render();});
 
 /* ========== 成長曲線（WHO 女児 weight-for-age） ========== */
 // 判定基準：
