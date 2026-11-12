@@ -338,6 +338,11 @@ table.st tr.cur td{background:var(--accent-soft)}
   <textarea id="sWeights" placeholder="2026-10-20 3.22&#10;2026-11-05 3490" style="min-height:100px;font-family:ui-monospace,monospace"></textarea>
   <div class="note">1行に「日付 体重」。kgでもgでも可（例 11/5 3490）。1行目は出生体重。ぴよログに体重を記録すると自動で追加される。最新の体重を1回量の計算に使う。健診の体重はここに入れる。</div>
 
+  <h3>スケジュール</h3>
+  <textarea id="sSched" style="min-height:260px;font-family:ui-monospace,monospace"></textarea>
+  <div class="note">1行に「時刻 担当 内容」。担当は パパ／ママ／ふたり。曜日限定は行頭に 月〜日（例「金 07:00 パパ 燃えるゴミ」）。内容に ミルク・母乳・搾乳・保湿・沐浴 を含む行はぴよログの記録で済判定。変えたら下の設定コードで相手に送る。</div>
+  <div class="actions"><button class="btn sm" onclick="resetSched()">初期値に戻す</button></div>
+
   <h3>夫婦で同じ設定にする</h3>
   <div class="actions">
     <button class="btn" onclick="exportCode()">設定コードを表示</button>
@@ -405,6 +410,7 @@ const DEFAULTS={
   preMin:30, preMl:40, extraMax:1, maxGapH:4, window:90, bfDefault:15,
   coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true, typeLabels:'Custom1=保湿', careSlots:'0,8,16',
   stages:DEFAULT_STAGES,
+  schedule:null, // null=初期値（DEFAULT_SCHEDULE）
   wkg:null, wdate:'',
   weights:[{d:'2026-10-20',kg:3.22,src:'birth'}], // 体重履歴 {d:'YYYY-MM-DD',kg,src:birth|piyolog|manual}
 };
@@ -944,16 +950,50 @@ function render(){
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 /* ========== スケジュール（パパ／ママ 2レーン） ========== */
-// h は時刻（小数可: 21.5=21:30）。w は誰の項目: papa / mama / both。k は自動済判定に使う記録種別: feed=授乳 care=保湿 bath=沐浴 pump=搾乳
-const BANDS=[
-  {from:20,to:8,duty:'papa',
-   items:[{h:20,w:'papa',t:'ミルク＋げっぷ',k:'feed'},{h:21.5,w:'mama',t:'搾乳→冷蔵',k:'pump'},{h:23,w:'papa',t:'ミルク（搾乳優先）',k:'feed'},{h:0,w:'papa',t:'保湿',k:'care'},{h:2,w:'papa',t:'ミルク',k:'feed'},{h:3,w:'mama',t:'搾乳→冷蔵',k:'pump'},{h:5,w:'papa',t:'ミルク',k:'feed'},
-         {h:7,w:'papa',t:'燃えるゴミ',dow:1},{h:7,w:'papa',t:'資源ごみ',dow:2},{h:7,w:'papa',t:'ダンボールごみ',dow:4},{h:7,w:'papa',t:'燃えるゴミ',dow:5},{h:7,w:'papa',t:'プラごみ',dow:6},{h:7.5,w:'papa',t:'食洗機'}]},
-  {from:8,to:18,duty:'mama',
-   items:[{h:8,w:'mama',t:'母乳→ミルク・保湿',k:'feed'},{h:11,w:'mama',t:'母乳→ミルク',k:'feed'},{h:14,w:'mama',t:'母乳→ミルク',k:'feed'},{h:16,w:'mama',t:'シーツ洗濯',dow:5},{h:16,w:'mama',t:'K2シロップ',dow:5},{h:17,w:'mama',t:'母乳→ミルク',k:'feed'}]},
-  {from:18,to:20,duty:'both',
-   items:[{h:18,w:'both',t:'沐浴・保湿、買い出し',k:'bath'},{h:18.5,w:'both',t:'夕食準備'},{h:19,w:'both',t:'夕食（パパ抱く）'},{h:19.5,w:'both',t:'夕食（ママ抱く）、食洗機'}]},
-];
+// 担当時間帯（背景色と「担当」行に使う）
+const BANDS=[{from:20,to:8,duty:'papa'},{from:8,to:18,duty:'mama'},{from:18,to:20,duty:'both'}];
+// スケジュール初期値。1行「[曜日 ]時刻 担当 内容」
+const DEFAULT_SCHEDULE=`20:00 パパ ミルク＋げっぷ
+21:30 ママ 搾乳→冷蔵
+23:00 パパ ミルク（搾乳優先）
+00:00 パパ 保湿
+02:00 パパ ミルク
+03:00 ママ 搾乳→冷蔵
+05:00 パパ ミルク
+月 07:00 パパ 燃えるゴミ
+火 07:00 パパ 資源ごみ
+木 07:00 パパ ダンボールごみ
+金 07:00 パパ 燃えるゴミ
+土 07:00 パパ プラごみ
+07:30 パパ 食洗機
+08:00 ママ 母乳→ミルク・保湿
+11:00 ママ 母乳→ミルク
+14:00 ママ 母乳→ミルク
+金 16:00 ママ シーツ洗濯
+金 16:00 ママ K2シロップ
+17:00 ママ 母乳→ミルク
+18:00 ふたり 沐浴・保湿、買い出し
+18:30 ふたり 夕食準備
+19:00 ふたり 夕食（パパ抱く）
+19:30 ふたり 夕食（ママ抱く）、食洗機`;
+const WHO_OF={'パパ':'papa','ママ':'mama','ふたり':'both','二人':'both','2人':'both'};
+const DOW_OF={'日':0,'月':1,'火':2,'水':3,'木':4,'金':5,'土':6};
+function kindOf(t){if(/ミルク|母乳/.test(t))return 'feed';if(/搾乳/.test(t))return 'pump';if(/沐浴|お風呂/.test(t))return 'bath';if(/保湿/.test(t))return 'care';return '';}
+// 戻り値 {items:[{h,w,t,k,dow}], bad:[行]}
+function parseSchedule(text){
+  const items=[],bad=[];
+  for(let line of String(text==null?DEFAULT_SCHEDULE:text).split(/\n/)){
+    line=line.replace(/#.*$/,'').trim();if(!line)continue;
+    const tk=line.split(/[\s　]+/);let dow=null;
+    if(tk.length&&DOW_OF[tk[0]]!=null){dow=DOW_OF[tk[0]];tk.shift();}
+    const m=tk.length&&tk[0].match(/^(\d{1,2})(?:[:：](\d{2}))?$/);
+    const w=tk.length>1?WHO_OF[tk[1]]:null;
+    const t=tk.slice(2).join(' ');
+    if(!m||Number(m[1])>23||!w||!t){bad.push(line);continue;}
+    items.push({h:Number(m[1])+(Number(m[2]||0))/60,w,t,k:kindOf(t),dow});
+  }
+  return {items,bad};
+}
 const DUTY_JA={papa:'パパ',mama:'ママ',both:'ふたり'};
 function bandHas(b,hd){return b.from<b.to?(hd>=b.from&&hd<b.to):(hd>=b.from||hd<b.to);}
 function itemDone(it,t,recs){
@@ -969,20 +1009,22 @@ function renderTasks(now,recs){
   const y=t=>(t-t0)/H*PX;
   const hd=now.getHours()+now.getMinutes()/60;
   const cur=BANDS.find(b=>bandHas(b,hd));
+  const SCHED=parseSchedule(S.schedule).items;
   // 帯（担当時間の背景）と項目を集める
-  let bands='';const ev=[];
+  let bands='';const ev=[];let curStart=null,curEnd=null;
   for(let d=-1;d<=1;d++)for(const b of BANDS){
     const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,b.from,0,0,0);
     const end=new Date(start);end.setHours(end.getHours()+((b.to-b.from+24)%24));
     if(end<=t0||start>t1)continue;
     const top=y(Math.max(start.getTime(),t0)),bot=y(Math.min(end.getTime(),t1));
     bands+='<div class="bd2 '+b.duty+'" style="top:'+top+'px;height:'+(bot-top)+'px"></div>';
-    for(const it of b.items){
-      const t=new Date(start);if(b.from>b.to&&it.h<b.from)t.setDate(t.getDate()+1);t.setHours(Math.floor(it.h),Math.round((it.h%1)*60),0,0);
-      if(it.dow!=null&&t.getDay()!==it.dow)continue;if(t<t0||t>t1)continue;
-      const done=itemDone(it,t,recs);const miss=!done&&t.getTime()+90*60000<=now.getTime();
-      ev.push({t:t.getTime(),it,done,miss,cur:b===cur&&start<=now&&now<end});
-    }
+    if(b===cur&&start<=now&&now<end){curStart=start;curEnd=end;}
+  }
+  for(let d=-1;d<=1;d++)for(const it of SCHED){
+    const t=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,Math.floor(it.h),Math.round((it.h%1)*60),0,0);
+    if(it.dow!=null&&t.getDay()!==it.dow)continue;if(t<t0||t>t1)continue;
+    const done=itemDone(it,t,recs);const miss=!done&&t.getTime()+90*60000<=now.getTime();
+    ev.push({t:t.getTime(),it,done,miss,cur:curStart&&t>=curStart&&t<curEnd});
   }
   ev.sort((a,b)=>a.t-b.t);
   // 上部の一行：今の担当／次のタスク（担当者の項目のみ）
@@ -1118,6 +1160,7 @@ function openSettings(){
   $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sWindow').value=S.window;$('sBfDefault').value=S.bfDefault;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
   $('sCoef').value=S.coef;
   {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=bi.ml;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;updateMlNowNote();}$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sFloorPerKg').value=S.floorPerKg;$('sHalfB').value=S.halfBreast;
+  $('sSched').value=S.schedule==null?DEFAULT_SCHEDULE:S.schedule;
   $('sWeights').value=(S.weights||[]).map(w=>w.d+' '+w.kg+(w.src==='piyolog'?'  # ぴよログ':w.src==='birth'?'  # 出生':'')).join('\n');
   renderStageTable(S.stages);
   {const c={};for(const r of records()){const k=r.type+(r.subType?'/'+r.subType:'');c[k]=(c[k]||0)+1;}
@@ -1159,6 +1202,7 @@ function parseWeights(text){
   }
   return out.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
 }
+function resetSched(){$('sSched').value=DEFAULT_SCHEDULE;}
 function resetStages(){S.stagesEdited=false;renderStageTable(DEFAULT_STAGES.map(s=>({...s})));}
 function closeSettings(save){
   if(save){
@@ -1169,6 +1213,8 @@ function closeSettings(save){
     S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
     S.coef=Number($('sCoef').value);S.linkWeight=$('sLink').checked;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
+    {const txt=$('sSched').value;const ps=parseSchedule(txt);if(ps.bad.length){alert('スケジュールの形式が違う行：\n'+ps.bad.join('\n')+'\n\n「時刻 担当 内容」の順。例「20:00 パパ ミルク」');return;}
+     S.schedule=txt.trim()===DEFAULT_SCHEDULE?null:txt;}
     {const ws=parseWeights($('sWeights').value);if(ws===null){alert('体重の記録の形式が違う行がある。「2026-11-05 3.49」のように1行ずつ。');return;}
      const old={};for(const w of (S.weights||[]))old[w.d]=w;
      S.weights=ws.map(w=>({d:w.d,kg:w.kg,src:old[w.d]&&Math.abs(old[w.d].kg-w.kg)<0.0005?old[w.d].src:(w.d===S.birth?'birth':'manual')}));
