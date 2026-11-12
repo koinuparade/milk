@@ -125,8 +125,10 @@ ul.tl li.now+li{border-top:0}
 .next .nv{font-size:22px;font-weight:800;text-align:right}
 .next .nv small{display:block;font-size:12px;color:var(--muted);font-weight:600}
 /* settings */
-.sheet{position:fixed;inset:0;background:var(--bg);overflow:auto;padding:max(10px,env(safe-area-inset-top)) 12px 40px;display:none;z-index:10}
+.sheet{position:fixed;inset:0;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 12px 60px;display:none;z-index:10}
 .sheet.open{display:block}
+.sheet .shhd{position:sticky;top:0;z-index:2;background:var(--bg);padding:max(10px,env(safe-area-inset-top)) 0 6px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+body.lock{position:fixed;width:100%;overflow:hidden}
 .sheet h1{font-size:18px;margin:6px 0 12px}
 .sheet h3{font-size:13px;color:var(--muted);margin:16px 0 6px}
 .sheet label{display:block;font-size:14px;margin:10px 0 4px}
@@ -146,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v39</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v40</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -265,7 +267,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 
 <!-- settings -->
 <div class="sheet" id="sheet">
-  <div class="row"><h1>設定</h1><button class="btn" onclick="closeSettings(false)">閉じる</button></div>
+  <div class="row shhd"><h1 style="margin:0">設定</h1><button class="btn" onclick="closeSettings(false)">閉じる</button></div>
 
   <h3>データ</h3>
   <label>ぴよログ データフィードURL</label>
@@ -1193,6 +1195,9 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 setInterval(()=>{if(document.visibilityState==='visible')render();},30000);
 
 /* ========== 設定画面 ========== */
+let LOCKY=0;
+function lockBody(){LOCKY=window.scrollY||0;document.body.style.top=(-LOCKY)+'px';document.body.classList.add('lock');}
+function unlockBody(){if(!document.body.classList.contains('lock'))return;document.body.classList.remove('lock');document.body.style.top='';window.scrollTo(0,LOCKY);}
 function openSettings(){
   $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;$('sTypeLabels').value=S.typeLabels||'';$('sCareSlots').value=S.careSlots||'';
 
@@ -1206,7 +1211,7 @@ function openSettings(){
    const keys=Object.keys(c).sort();$('feedTypes').textContent=keys.length?keys.map(k=>k+'（'+typeJa(k.split('/')[0])+'）'+c[k]+'件').join('、'):'データなし';
    const extra=records().filter(r=>!['BreastFeeding','Formula','ExpressedBreastMilk','Pumping','Vomiting','Weight','Sleep','WakeUp','Pee','Poop','Drink','Temperature'].includes(r.type)).slice(-5);
    if(extra.length)$('feedTypes').textContent+='　例：'+extra.map(r=>fmtHM(r.t)+' '+JSON.stringify(Object.assign({},r,{t:undefined,datetime:undefined,event_id:undefined}))).join(' / ');}
-  $('sheet').classList.add('open');window.scrollTo(0,0);
+  lockBody();$('sheet').classList.add('open');$('sheet').scrollTop=0;
 }
 function updateMlNowNote(){
   const v=Number($('sMlNow').value)||0;const link=$('sLink').checked;
@@ -1271,9 +1276,9 @@ function closeSettings(save){
      if(want>0&&(clamped||want!==baseInfo(d).ml)){cur.daily=want*n;if(S.linkWeight!==false&&KG)cur.kg=KG;cur.userSet=true;S.stagesEdited=true;}}
     S.stageVersion=STAGE_VERSION;
     saveSettings();UI.autoKey='';
-    $('sheet').classList.remove('open');fetchFeed(url!==prevUrl||S.demo);return;
+    $('sheet').classList.remove('open');unlockBody();fetchFeed(url!==prevUrl||S.demo);return;
   }
-  $('sheet').classList.remove('open');render();
+  $('sheet').classList.remove('open');unlockBody();render();
 }
 function encodeSettings(){
   const o={...S};delete o.feedUrl;delete o.demo;delete o.days;
@@ -1295,7 +1300,7 @@ function importCode(){
     const o=decodeSettings($('codeIn').value);
     if(!confirm('設定を取り込む？（フィードURLはこの端末のものを維持）'))return;
     const keep=S.feedUrl;S=Object.assign({},DEFAULTS,o,{feedUrl:keep,demo:false});saveSettings();UI.autoKey='';
-    $('codeIn').value='';$('sheet').classList.remove('open');render();
+    $('codeIn').value='';$('sheet').classList.remove('open');unlockBody();render();
   }catch(e){alert('設定コードを読めなかった：'+e.message);}
 }
 function importFromHash(){
