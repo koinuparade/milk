@@ -95,7 +95,10 @@ html[data-theme="dark"]{--papa:#6ea3f0;--papa-soft:#1b2a44;--mama:#f07aa8;--mama
 .sch .chip.both{left:5px;right:5px;border-left:3px solid var(--accent)}
 .sch .chip.done{opacity:.5;text-decoration:line-through}
 .sch .chip.miss{opacity:.55}
-.sch .chip.nx{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);font-weight:800}
+.sch .chip.nx{font-weight:800}
+.sch .chip.papa.nx{border-color:var(--papa);box-shadow:0 0 0 2px var(--papa-soft)}
+.sch .chip.mama.nx{border-color:var(--mama);box-shadow:0 0 0 2px var(--mama-soft)}
+.sch .chip.both.nx{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .sch .now{position:absolute;left:-4px;right:0;border-top:2px solid var(--warn);z-index:2}
 .sch .now span{position:absolute;left:-34px;top:-8px;font-size:10px;font-weight:800;color:#fff;background:var(--warn);padding:1px 3px;border-radius:4px}
 ul.tl li.miss{opacity:.6}
@@ -143,7 +146,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v37</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v39</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -278,11 +281,7 @@ table.st tr.cur td{background:var(--accent-soft)}
   <label><input type="checkbox" id="sDemo"> デモデータで動作確認（フィードを使わない）</label>
 
   <h3>時間帯</h3>
-  <div class="grid2">
-    <div><label>ミルクのみの時間帯 開始</label><input type="number" id="sNightFrom" min="0" max="23"></div>
-    <div><label>終了</label><input type="number" id="sNightTo" min="0" max="24"></div>
-  </div>
-  <div class="note">この時間帯は「ミルクのみ」タブが初期選択。定刻前に泣いたらミルク少量。それ以外の時間帯は母乳＋ミルクが初期選択で、定刻前は母乳。</div>
+  <div class="note">パパ担当の時間帯（下のシフト）は「ミルクのみ」タブが初期選択で、定刻前に泣いたらミルク少量。ママ・ふたりの時間帯は母乳＋ミルクが初期選択で、定刻前は母乳。</div>
 
   <h3>定刻前</h3>
   <div class="grid2">
@@ -413,7 +412,7 @@ const DEFAULTS={
   feedUrl:'', birth:'2026-10-20', demo:false,
   nightFrom:0, nightTo:8,
   preMin:30, preMl:40, extraMax:1, maxGapH:4, window:90, bfDefault:15,
-  coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true, typeLabels:'Custom1=保湿', careSlots:'0,8,16',
+  coef:2.5, bfCap:20, capPerKg:200, floorPerKg:150, days:{}, halfFormula:65, halfBreast:47, linkWeight:true, typeLabels:'Custom1=保湿', careSlots:'0,8,18',
   stages:DEFAULT_STAGES,
   schedule:null, // null=初期値（DEFAULT_SCHEDULE）
   bands:null, // null=初期値（DEFAULT_BANDS）。1行「開始-終了 担当」
@@ -447,6 +446,7 @@ function loadSettings(){
     delete o.offset;delete o.adjLog;delete o.autoAdj;delete o.lastAutoDate;
     if((o.stageVersion||1)<STAGE_VERSION&&!o.stagesEdited){stages=DEFAULT_STAGES.map(s=>({...s}));}
     o.stageVersion=STAGE_VERSION;
+    if(!o.careV2){if(o.careSlots==='0,8,16')o.careSlots='0,8,18';o.careV2=true;} // v38 保湿18時（沐浴後）
     // v34: 体重履歴。旧 wkg/wdate を取り込む
     if(!Array.isArray(o.weights)){
       o.weights=DEFAULTS.weights.map(w=>({...w}));
@@ -473,7 +473,16 @@ function stageLabel(days){
   if(days<14)return '〜1/2ヶ月';if(days<30)return '1/2〜1ヶ月';if(days<60)return '1〜2ヶ月';if(days<90)return '2〜3ヶ月';
   if(days<150)return '3〜5ヶ月';if(days<210)return '5〜7ヶ月';if(days<270)return '7〜9ヶ月';return '9〜12ヶ月';
 }
-function inNight(h){const f=Number(S.nightFrom),t=Number(S.nightTo);return f<t?(h>=f&&h<t):(h>=f||h<t);}
+// 「ミルクのみ」の時間帯＝パパ担当の時間帯（シフトから）。シフトが無い場合のみ nightFrom/nightTo
+function inNight(h){
+  if(typeof parseBands==='function'){const b=parseBands(S.bands).bands;if(b.length){const x=b.find(y=>bandHas(y,h));return !!x&&x.duty==='papa';}}
+  const f=Number(S.nightFrom),t=Number(S.nightTo);return f<t?(h>=f&&h<t):(h>=f||h<t);
+}
+function nightStartOf(now){ // 今いるパパ担当帯の開始時刻
+  let from=Number(S.nightFrom);
+  const b=parseBands(S.bands).bands;const x=b.find(y=>bandHas(y,now.getHours()+now.getMinutes()/60));if(x)from=x.from;
+  const d=new Date(now);d.setHours(from,0,0,0);if(d>now)d.setDate(d.getDate()-1);return d;
+}
 function slotTimes(now,slots){ // slot Date objects for yesterday..tomorrow
   const out=[];for(let d=-1;d<=1;d++){for(const h of slots){const x=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,h,0,0,0);out.push(x);}}return out.sort((a,b)=>a-b);
 }
@@ -735,7 +744,7 @@ function render(){
   // 夜の追加回数
   let extra=0;
   if(night){
-    const nightStart=new Date(now);nightStart.setHours(Number(S.nightFrom),0,0,0);if(nightStart>now)nightStart.setDate(nightStart.getDate()-1);
+    const nightStart=nightStartOf(now);
     const sl=slotTimes(now,slots);
     extra=extraFormula(recs.filter(r=>r.t>=nightStart&&r.t<=now),sl).length;
   }
@@ -759,10 +768,10 @@ function render(){
   const ps_=$('preSteps');
   if(enough){
     ps_.classList.remove('hidden');
-    ps_.innerHTML='直近'+intervalH+'時間の摂取で基準量の'+Math.round((1-hungerNow)*100)+'%をカバー済み。泣いたら <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けば'+(night?'ミルク少量':'<b>母乳</b>')+'。'+(night?'<br>今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回'+(extra>=Number(S.extraMax)?'　→ <b>空腹サインがあれば与える。定刻外2回以上の夜が2晩続いたら⚙で1回量を+10</b>':''):'');
+    ps_.innerHTML='直近'+intervalH+'時間の摂取で基準量の'+Math.round((1-hungerNow)*100)+'%をカバー済み。泣いたら <b>おむつ → げっぷ → 抱っこ</b>。それでも泣けば'+(night?'ミルク少量':'<b>母乳</b>')+'。'+(night?'<br>この時間帯の追加 <b>'+extra+'/'+S.extraMax+'</b>回'+(extra>=Number(S.extraMax)?'　→ <b>空腹サインがあれば与える。定刻外2回以上の日が2日続いたら⚙で1回量を+10</b>':''):'');
   }else if(isPre){
     ps_.classList.remove('hidden');
-    ps_.innerHTML='不足分 約<b>'+round10(needNow)+'ml</b>（ミルク換算）。次の定刻 <b>'+(ns?fmtHM(ns):'—')+'</b> まで'+(ns?fmtIn(ns-now).replace('あと',''):'')+'。'+(night?'今夜の追加 <b>'+extra+'/'+S.extraMax+'</b>回':'昼は<b>母乳</b>で補ってもよい。');
+    ps_.innerHTML='不足分 約<b>'+round10(needNow)+'ml</b>（ミルク換算）。次の定刻 <b>'+(ns?fmtHM(ns):'—')+'</b> まで'+(ns?fmtIn(ns-now).replace('あと',''):'')+'。'+(night?'この時間帯の追加 <b>'+extra+'/'+S.extraMax+'</b>回':'<b>母乳</b>で補ってもよい。');
   }else ps_.classList.add('hidden');
 
   // タブ描画
@@ -957,9 +966,11 @@ function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'
 
 /* ========== スケジュール（パパ／ママ 2レーン） ========== */
 // 担当時間帯（背景色と「担当」行に使う）
-const DEFAULT_BANDS=`20-8 パパ
-8-18 ママ
-18-20 ふたり`;
+const DEFAULT_BANDS=`23-7 ママ
+7-11 パパ
+11-14 ママ
+14-21 パパ
+21-23 ふたり`;
 let BANDS=[];
 // 「開始-終了 担当」を解析。終了は次の行の開始で決まる（隙間・重なりを作らない）。戻り値 {bands,bad}
 function parseBands(text){
@@ -978,29 +989,31 @@ function parseBands(text){
 }
 function loadBands(){const r=parseBands(S.bands);BANDS=r.bands.length?r.bands:parseBands(null).bands;}
 // スケジュール初期値。1行「[曜日 ]時刻 担当 内容」
-const DEFAULT_SCHEDULE=`20:00 パパ ミルク＋げっぷ
-21:30 ママ 搾乳→冷蔵
-23:00 パパ ミルク（搾乳優先）
-00:00 パパ 保湿
-02:00 パパ ミルク
-03:00 ママ 搾乳→冷蔵
-05:00 パパ ミルク
+const DEFAULT_SCHEDULE=`23:00 ママ 母乳
+00:00 ママ 保湿
+02:00 ママ 母乳
+05:00 ママ 母乳
 月 07:00 パパ 燃えるゴミ
 火 07:00 パパ 資源ごみ
 木 07:00 パパ ダンボールごみ
 金 07:00 パパ 燃えるゴミ
 土 07:00 パパ プラごみ
+07:00 ママ 退勤・仮眠
 07:30 パパ 食洗機
-08:00 ママ 母乳→ミルク・保湿
+08:00 パパ ミルク（搾乳優先）・保湿
 11:00 ママ 母乳→ミルク
-14:00 ママ 母乳→ミルク
-金 16:00 ママ シーツ洗濯
-金 16:00 ママ K2シロップ
-17:00 ママ 母乳→ミルク
-18:00 ふたり 沐浴・保湿、買い出し
-18:30 ふたり 夕食準備
-19:00 ふたり 夕食（パパ抱く）
-19:30 ふたり 夕食（ママ抱く）、食洗機`;
+14:00 パパ ミルク（搾乳優先）
+14:00 ママ 就寝
+金 15:00 パパ シーツ洗濯
+16:30 ママ 搾乳→冷蔵
+17:00 パパ ミルク（搾乳優先）
+18:00 パパ 沐浴・保湿
+20:00 パパ ミルク（搾乳優先）
+20:30 ママ 起床・搾乳→冷蔵
+21:00 パパ 買い出し
+21:30 ふたり 夕食
+金 21:30 ふたり K2シロップ
+22:30 パパ 食洗機`;
 const WHO_OF={'パパ':'papa','ママ':'mama','ふたり':'both','二人':'both','2人':'both'};
 const DOW_OF={'日':0,'月':1,'火':2,'水':3,'木':4,'金':5,'土':6};
 function kindOf(t){if(/ミルク|母乳/.test(t))return 'feed';if(/搾乳/.test(t))return 'pump';if(/沐浴|お風呂/.test(t))return 'bath';if(/保湿/.test(t))return 'care';return '';}
@@ -1182,7 +1195,7 @@ setInterval(()=>{if(document.visibilityState==='visible')render();},30000);
 /* ========== 設定画面 ========== */
 function openSettings(){
   $('sFeed').value=S.feedUrl||'';$('sBirth').value=S.birth;$('sDemo').checked=!!S.demo;$('sTypeLabels').value=S.typeLabels||'';$('sCareSlots').value=S.careSlots||'';
-  $('sNightFrom').value=S.nightFrom;$('sNightTo').value=S.nightTo;
+
   $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sWindow').value=S.window;$('sBfDefault').value=S.bfDefault;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
   $('sCoef').value=S.coef;
   {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=bi.ml;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;updateMlNowNote();}$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sFloorPerKg').value=S.floorPerKg;$('sHalfB').value=S.halfBreast;
@@ -1237,7 +1250,7 @@ function closeSettings(save){
     if(url&&!/^https:\/\/feed\.piyolog\.com\/v1\/feed\//.test(url)){alert('フィードURLの形式が違う。https://feed.piyolog.com/v1/feed/… を貼る。');return;}
     S.feedUrl=url;S.birth=$('sBirth').value||S.birth;S.demo=$('sDemo').checked;
     S.typeLabels=$('sTypeLabels').value;S.careSlots=$('sCareSlots').value;
-    S.nightFrom=Number($('sNightFrom').value);S.nightTo=Number($('sNightTo').value);
+
     S.preMin=Number($('sPreMin').value);S.preMl=Number($('sPreMl').value);S.window=Number($('sWindow').value)||90;S.bfDefault=Number($('sBfDefault').value)||15;S.extraMax=Number($('sExtraMax').value);S.maxGapH=Number($('sMaxGapH').value);
     S.coef=Number($('sCoef').value);S.linkWeight=$('sLink').checked;S.bfCap=Number($('sBfCap').value)||20;S.capPerKg=Number($('sCapPerKg').value)||200;S.halfFormula=Number($('sHalfF').value)||65;S.floorPerKg=Number($('sFloorPerKg').value)||150;S.halfBreast=Number($('sHalfB').value)||47;
     {const bt=$('sBands').value;const pb=parseBands(bt);if(pb.bad.length||!pb.bands.length){alert('シフトの形式が違う行：\n'+pb.bad.join('\n')+'\n\n「開始-終了 担当」。例「20-8 パパ」');return;}
