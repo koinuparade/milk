@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="おふみ乳業">
 <meta name="theme-color" content="#f6f4ef">
-<title>おふみ乳業</title>
+<title>おふみるく</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v40</span></div>
+    <div class="t" id="hTitle">おふみ乳業 <span class="muted" style="font-weight:400;font-size:11px">v41</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -245,6 +245,12 @@ table.st tr.cur td{background:var(--accent-soft)}
   </div>
 
   <div class="card">
+    <div class="row"><h2>1日量の目安</h2><span class="muted" id="stdLabel"></span></div>
+    <div id="stdTable"></div>
+    <div class="note" id="stdNote"></div>
+  </div>
+
+  <div class="card">
     <div class="row"><h2>スケジュール</h2><span class="muted" id="tkLabel"></span></div>
     <div id="tkBody"></div>
   </div>
@@ -303,9 +309,14 @@ table.st tr.cur td{background:var(--accent-soft)}
   <h3>1回量</h3>
   <div class="grid2">
     <div><label>今の1回量（ミルクのみ）ml</label><input type="number" id="sMlNow" step="10" min="10"></div>
-    <div><label>&nbsp;</label><label style="margin:0"><input type="checkbox" id="sLink"> 体重に連動して増やす</label></div>
+    <div><label>&nbsp;</label><label style="margin:0"><input type="checkbox" id="sLink"> 標準量を体重で換算する</label></div>
   </div>
   <div class="note" id="mlNowNote"></div>
+  <label>文乃の1回量（1行「日齢〜 ml」。空なら標準）</label>
+  <textarea id="sFeedOv" placeholder="15 90&#10;30 100" style="min-height:60px;font-family:ui-monospace,monospace"></textarea>
+  <label>定刻の変更（1行「日齢〜 時刻リスト」。空なら標準表の定刻）</label>
+  <textarea id="sSlotOv" placeholder="30 2,6,10,14,18,22" style="min-height:44px;font-family:ui-monospace,monospace"></textarea>
+  <div class="note">上の「今の1回量」を変えると、今の段階の行がここに書かれる。標準表はメイン画面「1日量の目安」。</div>
   <div class="note" id="adjInfoView"></div>
 
   <h3>母乳の換算</h3>
@@ -327,13 +338,6 @@ table.st tr.cur td{background:var(--accent-soft)}
   </div>
   <div class="note">研究値：ミルク65分（27〜98）、母乳47分（16〜86）。Van Den Driessche 1999。</div>
 
-  <h3>成長段階テーブル（詳細）</h3>
-  <table class="st" id="stageTable">
-    <thead><tr><th>日齢〜</th><th>1日量ml</th><th>基準体重kg</th><th>定刻（回数＝個数）</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <div class="note">各段階の1日量は「基準体重のときの量」。体重連動オンなら実体重に比例させる（例：750ml@3.75kg → 3.49kgで698 → 8回で80ml）。1回量＝1日量（体重で比例）÷定刻の個数、10ml単位に切り捨て。1日量の初期値は明治ほほえみ・グリコ アイクレオ・たまひよ（助産師監修）・京都市資料の「1回量×回数」の中央値：8〜14日600@3.0kg、15〜29日750@3.75kg、1〜2ヶ月870@4.7kg、2〜3ヶ月855@5.7kg、3〜4ヶ月1000@6.6kg、4〜5ヶ月1050@6.9kg、5ヶ月〜1050〜1075。AAPの上限960mlと体重×200mlで頭打ち。生後0〜7日は日数×10ml/回を自動適用。</div>
-  <div class="actions"><button class="btn sm" onclick="resetStages()">表を初期値に戻す</button></div>
 
   <h3>体重の記録（成長曲線・1回量の計算に使用）</h3>
   <textarea id="sWeights" placeholder="2026-10-20 3.22&#10;2026-11-05 3490" style="min-height:100px;font-family:ui-monospace,monospace"></textarea>
@@ -349,7 +353,15 @@ table.st tr.cur td{background:var(--accent-soft)}
   <div class="note">1行に「時刻 担当 内容」。担当は パパ／ママ／ふたり。曜日限定は行頭に 月〜日（例「金 07:00 パパ 燃えるゴミ」）。内容に ミルク・母乳・搾乳・保湿・沐浴 を含む行はぴよログの記録で済判定。変えたら下の設定コードで相手に送る。</div>
   <div class="actions"><button class="btn sm" onclick="resetSched()">初期値に戻す</button></div>
 
-  <h3>夫婦で同じ設定にする</h3>
+  <h3>Notionで設定を管理</h3>
+  <label>同期URL（Cloudflare WorkerのURL）</label>
+  <input type="url" id="sSyncUrl" placeholder="https://ofumi-sync.xxxx.workers.dev" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <label>合言葉</label>
+  <input type="text" id="sSyncPass" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <div class="note" id="syncNote">この端末内にのみ保存。設定するとNotion「おふみ乳業 設定」の値を起動・更新時に取り込み、この画面で保存した内容をNotionに書き戻す。</div>
+  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button></div>
+
+  <h3>夫婦で同じ設定にする（Notionを使わない場合）</h3>
   <div class="actions">
     <button class="btn" onclick="exportCode()">設定コードを表示</button>
   </div>
@@ -418,6 +430,9 @@ const DEFAULTS={
   stages:DEFAULT_STAGES,
   schedule:null, // null=初期値（DEFAULT_SCHEDULE）
   bands:null, // null=初期値（DEFAULT_BANDS）。1行「開始-終了 担当」
+  feedOverride:'', // 文乃の1回量 1行「日齢〜 ml」
+  slotsOverride:'', // 定刻の変更 1行「日齢〜 時刻リスト」
+  syncUrl:'', syncPass:'', syncAt:'', // Notion同期（端末のみ）
   wkg:null, wdate:'',
   weights:[{d:'2026-10-20',kg:3.22,src:'birth'}], // 体重履歴 {d:'YYYY-MM-DD',kg,src:birth|piyolog|manual}
 };
@@ -446,7 +461,15 @@ function loadSettings(){
       stages=o.stages.map((r,i)=>{const d=DEFAULT_STAGES[Math.min(i,DEFAULT_STAGES.length-1)];const kg=kgNow||d.kg;return {from:Number(r.from),daily:Math.round(kg*Number(r.mlkg)),kg:Math.round(kg*100)/100,slots:r.slots||d.slots};});
     }else stages=DEFAULT_STAGES.map(s=>({...s}));
     delete o.offset;delete o.adjLog;delete o.autoAdj;delete o.lastAutoDate;
-    if((o.stageVersion||1)<STAGE_VERSION&&!o.stagesEdited){stages=DEFAULT_STAGES.map(s=>({...s}));}
+    // v41: 段階表は標準固定。手動変更は feedOverride / slotsOverride に移す
+    if(o.feedOverride==null){
+      const fo=[],so=[];
+      for(const r of stages){const d=DEFAULT_STAGES.find(x=>x.from===Number(r.from));const n=nOf(r);
+        if(r.userSet&&r.daily>0)fo.push(r.from+' '+Math.round(Number(r.daily)/n/10)*10);
+        if(d&&String(r.slots).replace(/\s/g,'')!==d.slots.replace(/\s/g,''))so.push(r.from+' '+r.slots);}
+      o.feedOverride=fo.join('\n');if(so.length&&o.slotsOverride==null)o.slotsOverride=so.join('\n');
+    }
+    stages=DEFAULT_STAGES.map(s=>({...s}));o.stagesEdited=false;
     o.stageVersion=STAGE_VERSION;
     if(!o.careV2){if(o.careSlots==='0,8,16')o.careSlots='0,8,18';o.careV2=true;} // v38 保湿18時（沐浴後）
     // v34: 体重履歴。旧 wkg/wdate を取り込む
@@ -469,7 +492,18 @@ function round10(x){return Math.max(0,Math.round(x/10)*10);}
 function floor10(x){return Math.max(0,Math.floor(x/10+1e-9)*10);}
 function slotCount(st){return Math.max(1,parseSlots(st.slots).length);}
 function ageDays(now){const b=new Date(S.birth+'T00:00:00');const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());return Math.floor((t-b)/86400000);}
-function stageFor(days){let cur=S.stages[0];for(const st of S.stages){if(days>=Number(st.from))cur=st;}return cur;}
+function parseOverride(text){ // "日齢 値" → [{from,val}]。bad=読めない行
+  const out=[],bad=[];for(let line of String(text||'').replace(/　/g,' ').split(/\n/)){line=line.replace(/#.*$/,'').trim();if(!line)continue;
+    const m=line.match(/^(\d{1,3})\s+(.+)$/);if(!m){bad.push(line);continue;}out.push({from:Number(m[1]),val:m[2].trim()});}
+  return {items:out.sort((a,b)=>a.from-b.from),bad};
+}
+function overrideFor(days,text){let cur=null;for(const o of parseOverride(text).items){if(days>=o.from)cur=o;}return cur;}
+function stageFor(days){ // 標準の段階。定刻は slotsOverride があればそれ
+  let cur=DEFAULT_STAGES[0];for(const st of DEFAULT_STAGES){if(days>=Number(st.from))cur=st;}
+  const so=overrideFor(days,S.slotsOverride);const st={...cur};
+  if(so&&parseSlots(so.val).length)st.slots=parseSlots(so.val).join(',');
+  return st;
+}
 function parseSlots(str){return String(str).split(/[,、\s]+/).map(Number).filter(n=>!isNaN(n)&&n>=0&&n<24).sort((a,b)=>a-b);}
 function stageLabel(days){
   if(days<14)return '〜1/2ヶ月';if(days<30)return '1/2〜1ヶ月';if(days<60)return '1〜2ヶ月';if(days<90)return '2〜3ヶ月';
@@ -502,7 +536,12 @@ function baseInfo(days){
   const cap=dailyCap(days);const rawDaily=daily;
   if(daily>cap){how+='、正常範囲の上端'+cap+'で頭打ち';daily=cap;}
   ml=floor10(daily/n);how+='、÷'+n+'回＝'+ml+'ml';
-  return {ml:Math.max(0,ml),how,st,n,daily,over:rawDaily>cap,rawMl:round10(rawDaily/n),cap};
+  const stdMl=Math.max(0,ml),stdDaily=daily;
+  const ov=overrideFor(days,S.feedOverride);const ovMl=ov?round10(Number(ov.val)):null;
+  if(ovMl){const capMl=floor10(cap/n);const use=Math.min(ovMl,capMl);
+    how='標準'+stdMl+'ml（'+how+'）に対し文乃設定'+ovMl+'ml（生後'+ov.from+'日〜）'+(ovMl>capMl?'→正常範囲の上端'+capMl+'mlに丸め':'');
+    return {ml:use,how,st,n,daily:use*n,over:ovMl>capMl,rawMl:ovMl,cap,stdMl,stdDaily,ov:ovMl,ovFrom:ov.from,ovStale:ov.from<Number(st.from)};}
+  return {ml:stdMl,how,st,n,daily,over:rawDaily>cap,rawMl:round10(rawDaily/n),cap,stdMl,stdDaily,ov:null};
 }
 function baseFormulaOnly(days){return baseInfo(days).ml;}
 // 体重あたりの1日量の範囲：〜3ヶ月 150〜200（設定値）、3〜6ヶ月 120〜170、6ヶ月〜 90〜140（Nutricia 150/120/100を中心に±）。AAP上限960
@@ -610,6 +649,8 @@ function render(){
   if(S.demo)al.push(['info','デモデータ表示中。設定でオフにする。']);
   if(!configured){$('alerts').innerHTML='';return;}
   if(bi.over)al.push(['info','設定の1回量'+bi.rawMl+'ml×'+bi.n+'回＝'+(bi.rawMl*bi.n)+'mlは正常範囲外（上端'+bi.cap+'ml＝体重×'+perKgRange(days)[1]+'）。上端いっぱいの'+bi.ml+'mlを適用中。']);
+  if(bi.ov&&bi.ovStale)al.push(['info','文乃の1回量'+bi.ov+'ml（生後'+bi.ovFrom+'日〜）は前の段階で決めた値。今の段階の標準は'+bi.stdMl+'ml。見直すなら⚙の「今の1回量」。']);
+  if(SYNCERR.length)al.push(['warn','Notionの設定で読めない値：'+SYNCERR.join('／')+'。その項目は前の値のまま。']);
   if(!KG)al.push(['info','体重が未設定。⚙で体重を入れるかぴよログに体重を記録すると、体重×150ml/kgで計算する。']);
 
   const feeds=recs.filter(r=>FEEDTYPES.has(r.type));
@@ -955,6 +996,7 @@ function render(){
   $('tdNote').textContent=tdn.join(' ');
   renderTasks(now,recs);
   renderGrowth(gi,days);
+  renderStdTable(days);
 
   // タイムライン
   const cl=customLabels();
@@ -965,6 +1007,85 @@ function render(){
   $('alerts').innerHTML=al.map(a=>'<div class="alert '+a[0]+'">'+escapeHtml(a[1])+'</div>').join('');
 }
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ========== 1日量の目安（標準表 vs 文乃） ========== */
+function renderStdTable(days){
+  const cur=stageFor(days);const link=S.linkWeight!==false&&KG;
+  $('stdLabel').textContent=link?'今の段階は体重'+KG+'kgで換算':'基準体重のまま';
+  const fo=parseOverride(S.feedOverride).items;
+  const rows=DEFAULT_STAGES.map((st,i)=>{
+    const n=slotCount(stageFor(st.from));const next=DEFAULT_STAGES[i+1];
+    const label=st.from+'〜'+(next?(next.from-1):'')+'日';
+    const stdMl=floor10(st.daily/n);
+    const isCur=st.from===Number(cur.from);
+    let wMl='—';if(link&&isCur){const d=Math.min(dailyCap(days),Math.round(st.daily*KG/st.kg));wMl=floor10(d/n)+'';}
+    let ovTxt='';const ov=[...fo].reverse().find(o=>o.from>=st.from&&(!next||o.from<next.from));
+    const inherit=!ov&&fo.length&&overrideFor(st.from,S.feedOverride);
+    if(ov)ovTxt='<b>'+escapeHtml(ov.val)+'</b>';else if(inherit)ovTxt='<span class="muted">'+escapeHtml(inherit.val)+'（継続）</span>';else ovTxt='<span class="muted">標準</span>';
+    return '<tr'+(isCur?' class="cur"':'')+'><td>'+label+(isCur?' ◀':'')+'</td><td>'+stdMl+'<small>×'+n+'＝'+st.daily+'</small><br><small class="muted">@'+st.kg+'kg</small></td><td>'+wMl+(link&&isCur?'<small>×'+n+'</small>':'')+'</td><td>'+ovTxt+'</td></tr>';
+  }).join('');
+  $('stdTable').innerHTML='<table class="st" style="font-size:12px"><thead><tr><th>日齢</th><th>標準1回×回＝1日</th><th>体重換算</th><th>文乃</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  $('stdNote').textContent='標準＝明治ほほえみ・グリコ アイクレオ・たまひよ・京都市の「1回量×回数」の中央値（基準体重での量）。体重換算＝標準×最新体重÷基準体重（今の段階のみ表示）。「継続」＝前の段階で決めた値がそのまま使われる。文乃＝⚙で決めた値。実際に使う1回量は、文乃設定があればそれ、なければ体重換算。どちらも正常範囲の上端（体重×'+perKgRange(days)[1]+'ml/kg、最大960）で頭打ち。生後0〜7日は日数×10ml。';
+}
+
+/* ========== Notion 同期 ========== */
+let SYNCERR=[],SYNCSTAT='';
+const nm=(lo,hi)=>v=>{const n=Number(String(v).trim());if(!isFinite(n)||n<lo||n>hi)throw 0;return n;};
+const SYNC_FIELDS={
+  birth:{label:'誕生日',get:()=>S.birth,set:v=>{v=String(v).trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||isNaN(new Date(v+'T00:00:00')))throw 0;S.birth=v;}},
+  feedOverride:{label:'文乃の1回量（ミルクのみ）',get:()=>S.feedOverride||'',set:v=>{const r=parseOverride(v);if(r.bad.length||r.items.some(o=>!(Number(o.val)>0)))throw 0;S.feedOverride=String(v).trim();}},
+  linkWeight:{label:'体重に連動して増やす',get:()=>S.linkWeight!==false?'はい':'いいえ',set:v=>{v=String(v).trim();if(/^(はい|yes|true|on|1)$/i.test(v))S.linkWeight=true;else if(/^(いいえ|no|false|off|0)$/i.test(v))S.linkWeight=false;else throw 0;}},
+  floorPerKg:{label:'正常範囲の下端 ml/kg',get:()=>S.floorPerKg,set:v=>{S.floorPerKg=nm(50,300)(v);}},
+  capPerKg:{label:'正常範囲の上端 ml/kg',get:()=>S.capPerKg,set:v=>{S.capPerKg=nm(100,300)(v);}},
+  coef:{label:'母乳1分≒ミルク ml',get:()=>S.coef,set:v=>{S.coef=nm(0,20)(v);}},
+  bfCap:{label:'母乳の換算は最大何分まで',get:()=>S.bfCap,set:v=>{S.bfCap=nm(0,120)(v);}},
+  bfDefault:{label:'母乳の初期値 分',get:()=>S.bfDefault,set:v=>{S.bfDefault=nm(0,120)(v);}},
+  preMin:{label:'定刻前とみなす 分',get:()=>S.preMin,set:v=>{S.preMin=nm(0,180)(v);}},
+  preMl:{label:'定刻前のミルク ml',get:()=>S.preMl,set:v=>{S.preMl=nm(0,200)(v);}},
+  extraMax:{label:'定刻外の追加 上限 回',get:()=>S.extraMax,set:v=>{S.extraMax=nm(0,10)(v);}},
+  maxGapH:{label:'授乳の最大間隔 時間',get:()=>S.maxGapH,set:v=>{S.maxGapH=nm(1,12)(v);}},
+  halfFormula:{label:'胃内容の半減期 ミルク 分',get:()=>S.halfFormula,set:v=>{S.halfFormula=nm(10,300)(v);}},
+  halfBreast:{label:'胃内容の半減期 母乳・搾乳 分',get:()=>S.halfBreast,set:v=>{S.halfBreast=nm(10,300)(v);}},
+  typeLabels:{label:'カスタム記録の名前',get:()=>S.typeLabels||'',set:v=>{S.typeLabels=String(v).trim();}},
+  careSlots:{label:'保湿の予定時刻',get:()=>S.careSlots||'',set:v=>{v=String(v).trim();if(v&&!parseSlots(v).length)throw 0;S.careSlots=v;}},
+  bands:{label:'シフト',get:()=>S.bands==null?DEFAULT_BANDS:S.bands,set:v=>{const r=parseBands(v);if(r.bad.length||!r.bands.length)throw 0;S.bands=String(v).trim()===DEFAULT_BANDS?null:String(v);}},
+  schedule:{label:'スケジュール',get:()=>S.schedule==null?DEFAULT_SCHEDULE:S.schedule,set:v=>{const r=parseSchedule(v);if(r.bad.length)throw 0;S.schedule=String(v).trim()===DEFAULT_SCHEDULE?null:String(v);}},
+  weights:{label:'体重の記録',get:()=>(S.weights||[]).map(w=>w.d+' '+w.kg).join('\n'),set:v=>{const ws=parseWeights(v);if(ws===null)throw 0;const old={};for(const w of (S.weights||[]))old[w.d]=w;
+    S.weights=ws.map(w=>({d:w.d,kg:w.kg,src:old[w.d]&&Math.abs(old[w.d].kg-w.kg)<0.0005?old[w.d].src:(w.d===S.birth?'birth':'manual')}));
+    const lw=S.weights[S.weights.length-1];S.wkg=lw?lw.kg:null;S.wdate=lw?lw.d:'';S.wsrc=lw?lw.src:'';}},
+  slotsOverride:{label:'定刻の変更',get:()=>S.slotsOverride||'',set:v=>{const r=parseOverride(v);if(r.bad.length||r.items.some(o=>!parseSlots(o.val).length))throw 0;S.slotsOverride=String(v).trim();}},
+};
+function syncOn(){return !!(S.syncUrl&&S.syncPass);}
+function syncEndpoint(){return String(S.syncUrl).replace(/\/+$/,'')+'/settings';}
+async function pullSync(){
+  if(!syncOn())return false;
+  SYNCSTAT='取得中…';
+  try{
+    const r=await fetch(syncEndpoint(),{headers:{'X-Pass':S.syncPass},cache:'no-store'});
+    if(!r.ok){SYNCSTAT='Notion取得失敗 HTTP '+r.status+(r.status===401?'（合言葉が違う）':'');return false;}
+    const d=await r.json();const errs=[];const snap=JSON.stringify(S);
+    for(const row of (d.rows||[])){const f=SYNC_FIELDS[row.key];if(!f)continue;
+      try{f.set(row.value);}catch(e){errs.push(f.label);}}
+    SYNCERR=errs;S.syncAt=d.edited||new Date().toISOString();
+    if(JSON.stringify(S)!==snap){saveSettings();UI.autoKey='';}
+    SYNCSTAT='Notionと同期 '+fmtHM(new Date());return true;
+  }catch(e){SYNCSTAT='Notion取得失敗（通信）';return false;}
+}
+async function pushSync(keys){
+  if(!syncOn())return false;
+  const values={},labels={};for(const k of (keys||Object.keys(SYNC_FIELDS))){const f=SYNC_FIELDS[k];if(!f)continue;values[k]=String(f.get()??'');labels[k]=f.label;}
+  try{
+    const r=await fetch(syncEndpoint(),{method:'POST',headers:{'X-Pass':S.syncPass,'Content-Type':'application/json'},body:JSON.stringify({values,labels})});
+    if(!r.ok){SYNCSTAT='Notion書き込み失敗 HTTP '+r.status;render();return false;}
+    const d=await r.json();S.syncAt=d.edited||S.syncAt;saveSettings();SYNCSTAT='Notionに保存 '+fmtHM(new Date());render();return true;
+  }catch(e){SYNCSTAT='Notion書き込み失敗（通信）';render();return false;}
+}
+async function syncNowBtn(){
+  S.syncUrl=$('sSyncUrl').value.trim();S.syncPass=$('sSyncPass').value.trim();saveSettings();
+  if(!syncOn()){alert('同期URLと合言葉を入れる');return;}
+  const ok=await pullSync();$('syncNote').textContent=SYNCSTAT+(SYNCERR.length?'。読めない値：'+SYNCERR.join('／'):'');
+  if(ok){openSettings();alert('Notionの値を取り込んだ。「保存」で確定。');}
+}
 
 /* ========== スケジュール（パパ／ママ 2レーン） ========== */
 // 担当時間帯（背景色と「担当」行に使う）
@@ -1187,11 +1308,13 @@ $('outMl').addEventListener('input',e=>{UI.outManual=Math.max(0,Number(e.target.
 function renderKeep(el){const v=el.value;render();el.value=v;}
 $('tabA').onclick=()=>{UI.mode='A';UI.outManual=null;render();};
 $('tabB').onclick=()=>{UI.mode='B';UI.outManual=null;render();};
-$('btnRefresh').onclick=()=>{const w=60000-(Date.now()-FEEDAT);if(!S.demo&&w>0&&FEED){lastErr='前回取得から60秒未満。あと'+Math.ceil(w/1000)+'秒。';render();setTimeout(()=>{lastErr='';render();},2000);return;}fetchFeed(true);};
+$('btnRefresh').onclick=()=>{if(syncOn())pullSync().then(()=>render());const w=60000-(Date.now()-FEEDAT);if(!S.demo&&w>0&&FEED){lastErr='前回取得から60秒未満。あと'+Math.ceil(w/1000)+'秒。';render();setTimeout(()=>{lastErr='';render();},2000);return;}fetchFeed(true);};
 $('btnSettings').onclick=openSettings;
 $('btnCry').onclick=()=>{const b=$('cryBox');b.classList.toggle('hidden');b.innerHTML=CRYHTML;$('btnCry').textContent=b.classList.contains('hidden')?'原因を調べる':'閉じる';};
 $('sMlNow').addEventListener('input',updateMlNowNote);$('sLink').addEventListener('change',updateMlNowNote);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')fetchFeed(false);});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchFeed(false);if(syncOn()&&Date.now()-SYNCLAST>60000)pullSync().then(()=>render());}});
+let SYNCLAST=0;const _pull=pullSync;pullSync=async function(){SYNCLAST=Date.now();return _pull();};
+if(syncOn())pullSync().then(()=>render());
 setInterval(()=>{if(document.visibilityState==='visible')render();},30000);
 
 /* ========== 設定画面 ========== */
@@ -1203,10 +1326,11 @@ function openSettings(){
 
   $('sPreMin').value=S.preMin;$('sPreMl').value=S.preMl;$('sWindow').value=S.window;$('sBfDefault').value=S.bfDefault;$('sExtraMax').value=S.extraMax;$('sMaxGapH').value=S.maxGapH;
   $('sCoef').value=S.coef;
-  {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=bi.ml;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;updateMlNowNote();}$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sFloorPerKg').value=S.floorPerKg;$('sHalfB').value=S.halfBreast;
+  {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=bi.ml;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;updateMlNowNote();}
+  $('sFeedOv').value=S.feedOverride||'';$('sSlotOv').value=S.slotsOverride||'';
+  $('sSyncUrl').value=S.syncUrl||'';$('sSyncPass').value=S.syncPass||'';if(SYNCSTAT)$('syncNote').textContent=SYNCSTAT+'。この画面で保存するとNotionに書き戻す。Notionで変えた値は起動・更新時に取り込む。';$('sBfCap').value=S.bfCap;$('sCapPerKg').value=S.capPerKg;$('sHalfF').value=S.halfFormula;$('sFloorPerKg').value=S.floorPerKg;$('sHalfB').value=S.halfBreast;
   $('sSched').value=S.schedule==null?DEFAULT_SCHEDULE:S.schedule;$('sBands').value=S.bands==null?DEFAULT_BANDS:S.bands;
   $('sWeights').value=(S.weights||[]).map(w=>w.d+' '+w.kg+(w.src==='piyolog'?'  # ぴよログ':w.src==='birth'?'  # 出生':'')).join('\n');
-  renderStageTable(S.stages);
   {const c={};for(const r of records()){const k=r.type+(r.subType?'/'+r.subType:'');c[k]=(c[k]||0)+1;}
    const keys=Object.keys(c).sort();$('feedTypes').textContent=keys.length?keys.map(k=>k+'（'+typeJa(k.split('/')[0])+'）'+c[k]+'件').join('、'):'データなし';
    const extra=records().filter(r=>!['BreastFeeding','Formula','ExpressedBreastMilk','Pumping','Vomiting','Weight','Sleep','WakeUp','Pee','Poop','Drink','Temperature'].includes(r.type)).slice(-5);
@@ -1220,18 +1344,6 @@ function updateMlNowNote(){
   else if(link)t='体重が未設定のため連動しない。';
   else t='固定。体重が増えても自分で上げる。';
   $('mlNowNote').textContent=t;
-}
-function renderStageTable(stages){
-  const days=ageDays(new Date());const cur=stageFor(days);
-  $('stageTable').querySelector('tbody').innerHTML=stages.map((s,i)=>'<tr'+(s===cur?' class="cur"':'')+'>'+
-    '<td><input type="number" data-i="'+i+'" data-k="from" value="'+s.from+'"></td>'+
-    '<td><input type="number" step="10" data-i="'+i+'" data-k="daily" value="'+s.daily+'"></td>'+
-    '<td><input type="number" step="0.05" data-i="'+i+'" data-k="kg" value="'+s.kg+'"></td>'+
-    '<td><input type="text" data-i="'+i+'" data-k="slots" value="'+s.slots+'" style="min-width:90px"></td></tr>').join('');
-}
-function readStageTable(){
-  const rows={};$('stageTable').querySelectorAll('input').forEach(inp=>{const i=inp.dataset.i,k=inp.dataset.k;rows[i]=rows[i]||{};rows[i][k]=k==='slots'?inp.value:Number(inp.value);});
-  return Object.values(rows).filter(r=>!isNaN(r.from)).sort((a,b)=>a.from-b.from);
 }
 function parseWeights(text){
   const out=[];const by=new Date(S.birth+'T00:00:00').getFullYear();
@@ -1248,7 +1360,6 @@ function parseWeights(text){
 }
 function resetSched(){$('sSched').value=DEFAULT_SCHEDULE;}
 function resetBands(){$('sBands').value=DEFAULT_BANDS;}
-function resetStages(){S.stagesEdited=false;renderStageTable(DEFAULT_STAGES.map(s=>({...s})));}
 function closeSettings(save){
   if(save){
     const url=$('sFeed').value.trim();const prevUrl=S.feedUrl;
@@ -1266,22 +1377,30 @@ function closeSettings(save){
      const old={};for(const w of (S.weights||[]))old[w.d]=w;
      S.weights=ws.map(w=>({d:w.d,kg:w.kg,src:old[w.d]&&Math.abs(old[w.d].kg-w.kg)<0.0005?old[w.d].src:(w.d===S.birth?'birth':'manual')}));
      const lw=S.weights[S.weights.length-1];S.wkg=lw?lw.kg:null;S.wdate=lw?lw.d:'';S.wsrc=lw?lw.src:'';}
-    {const stg=readStageTable();if(stg.length){
-       stg.forEach((r,i)=>{const o=S.stages[i];if(o&&o.from===r.from&&o.daily===r.daily&&o.kg===r.kg&&o.slots===r.slots){r.userSet=!!o.userSet;}else{r.userSet=true;S.stagesEdited=true;}});
-       S.stages=stg;}}
+    {const so=parseOverride($('sSlotOv').value);if(so.bad.length||so.items.some(o=>!parseSlots(o.val).length)){alert('定刻の変更の形式が違う行：\n'+so.bad.join('\n')+'\n\n「日齢〜 時刻リスト」。例「30 2,6,10,14,18,22」');return;}
+     S.slotsOverride=$('sSlotOv').value.trim();}
+    {const fo=parseOverride($('sFeedOv').value);if(fo.bad.length||fo.items.some(o=>!(Number(o.val)>0))){alert('文乃の1回量の形式が違う行：\n'+fo.bad.join('\n')+'\n\n「日齢〜 ml」。例「15 90」');return;}
+     S.feedOverride=$('sFeedOv').value.trim();}
     {const d=ageDays(new Date());const cur=stageFor(d);let want=Number($('sMlNow').value);const n=slotCount(cur);
      const capMl=floor10(dailyCap(d)/n);
      let clamped=false;
      if(want>capMl){alert('正常範囲外の値（'+want+'ml×'+n+'回＝'+(want*n)+'ml、上端は'+dailyCap(d)+'ml＝体重×'+perKgRange(d)[1]+'ml/kg）。正常範囲いっぱいの'+capMl+'mlで設定した。');want=capMl;clamped=true;}
-     if(want>0&&(clamped||want!==baseInfo(d).ml)){cur.daily=want*n;if(S.linkWeight!==false&&KG)cur.kg=KG;cur.userSet=true;S.stagesEdited=true;}}
+     const bi=baseInfo(d);
+     if(want>0&&(clamped||want!==bi.ml)){ // 今の段階の行を書き換え（無ければ追加）
+       const items=parseOverride(S.feedOverride).items.filter(o=>o.from!==Number(cur.from));
+       items.push({from:Number(cur.from),val:String(round10(want))});
+       S.feedOverride=items.sort((a,b)=>a.from-b.from).map(o=>o.from+' '+o.val).join('\n');}}
+    S.syncUrl=$('sSyncUrl').value.trim();S.syncPass=$('sSyncPass').value.trim();
     S.stageVersion=STAGE_VERSION;
     saveSettings();UI.autoKey='';
-    $('sheet').classList.remove('open');unlockBody();fetchFeed(url!==prevUrl||S.demo);return;
+    $('sheet').classList.remove('open');unlockBody();fetchFeed(url!==prevUrl||S.demo);
+    if(syncOn())pushSync();
+    return;
   }
   $('sheet').classList.remove('open');unlockBody();render();
 }
 function encodeSettings(){
-  const o={...S};delete o.feedUrl;delete o.demo;delete o.days;
+  const o={...S};delete o.feedUrl;delete o.demo;delete o.days;delete o.syncUrl;delete o.syncPass;delete o.syncAt;delete o.stages;
   return 'MILK1.'+btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 function decodeSettings(code){
@@ -1299,7 +1418,7 @@ function importCode(){
   try{
     const o=decodeSettings($('codeIn').value);
     if(!confirm('設定を取り込む？（フィードURLはこの端末のものを維持）'))return;
-    const keep=S.feedUrl;S=Object.assign({},DEFAULTS,o,{feedUrl:keep,demo:false});saveSettings();UI.autoKey='';
+    const keep={feedUrl:S.feedUrl,syncUrl:S.syncUrl,syncPass:S.syncPass,syncAt:S.syncAt};delete o.stages;S=Object.assign({},DEFAULTS,o,keep,{demo:false,stages:DEFAULT_STAGES.map(s=>({...s}))});saveSettings();UI.autoKey='';
     $('codeIn').value='';$('sheet').classList.remove('open');unlockBody();render();
   }catch(e){alert('設定コードを読めなかった：'+e.message);}
 }
@@ -1308,7 +1427,7 @@ function importFromHash(){
   try{
     const o=decodeSettings('MILK1.'+m[1]);
     if(confirm('共有された設定を取り込む？（フィードURLはこの端末のものを維持）')){
-      const keep=S.feedUrl;S=Object.assign({},DEFAULTS,o,{feedUrl:keep,demo:false});saveSettings();UI.autoKey='';
+      const keep={feedUrl:S.feedUrl,syncUrl:S.syncUrl,syncPass:S.syncPass,syncAt:S.syncAt};delete o.stages;S=Object.assign({},DEFAULTS,o,keep,{demo:false,stages:DEFAULT_STAGES.map(s=>({...s}))});saveSettings();UI.autoKey='';
     }
   }catch(e){alert('設定リンクを読めなかった');}
   history.replaceState(null,'',location.pathname+location.search);
