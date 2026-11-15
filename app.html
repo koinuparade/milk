@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v47</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v48</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -288,8 +288,8 @@ table.st tr.cur td{background:var(--accent-soft)}
   <label>合言葉</label>
   <input type="text" id="sSyncPass" autocapitalize="off" autocorrect="off" spellcheck="false">
   <div class="note" id="syncNote">この端末内にのみ保存。設定するとNotion「おふみるく 設定」の値を起動・更新時に取り込み、この画面で保存した内容をNotionに書き戻す。</div>
-  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" id="notionLink" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">Notionを開く</a></div>
-  <div class="note">誕生日・定刻前・母乳換算・正常範囲・体重・シフト・スケジュール・文乃の1回量などの設定はすべてNotion「おふみるく 設定」で編集する。Notionで変えた値はアプリの起動・更新時に反映。</div>
+  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">設定を開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8159bc5efcc56c31187f" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">スケジュールを開く</a></div>
+  <div class="note">設定はNotion「おふみるく 設定」、シフトとやることはNotion「おふみるく スケジュール」（30分刻み。担当列＝シフト、パパ／ママ／ふたり列＝やること）で編集する。Notionで変えた値はアプリの起動・更新時に反映。</div>
   <div class="note" id="syncStat"></div>
 
 
@@ -451,7 +451,7 @@ function inNight(h){
 function nightStartOf(now){ // 今いるパパ担当帯の開始時刻
   let from=Number(S.nightFrom);
   const b=parseBands(S.bands).bands;const x=b.find(y=>bandHas(y,now.getHours()+now.getMinutes()/60));if(x)from=x.from;
-  const d=new Date(now);d.setHours(from,0,0,0);if(d>now)d.setDate(d.getDate()-1);return d;
+  const d=new Date(now);d.setHours(Math.floor(from),Math.round((from%1)*60),0,0);if(d>now)d.setDate(d.getDate()-1);return d;
 }
 function slotTimes(now,slots){ // slot Date objects for yesterday..tomorrow
   const out=[];for(let d=-1;d<=1;d++){for(const h of slots){const x=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,h,0,0,0);out.push(x);}}return out.sort((a,b)=>a-b);
@@ -582,7 +582,7 @@ function render(){
   if(lastErr)al.push(['warn',lastErr]);
   if(S.demo)al.push(['info','デモデータ表示中。設定でオフにする。']);
   if(!configured){$('alerts').innerHTML='';return;}
-  if(bi.over)al.push(['info','設定の1回量'+bi.rawMl+'ml×'+bi.n+'回＝'+(bi.rawMl*bi.n)+'mlは正常範囲外（上端'+bi.cap+'ml＝体重×'+perKgRange(days)[1]+'）。上端いっぱいの'+bi.ml+'mlを適用中。']);
+  if(bi.over&&bi.ov)al.push(['info','文乃の1回量'+bi.rawMl+'ml×'+bi.n+'回＝'+(bi.rawMl*bi.n)+'mlは正常範囲外（上端'+bi.cap+'ml＝体重×'+perKgRange(days)[1]+'）。上端いっぱいの'+bi.ml+'mlを適用中。']);
   if(bi.ov&&bi.ovStale)al.push(['info','文乃の1回量'+bi.ov+'ml（生後'+bi.ovFrom+'日〜）は前の段階で決めた値。今の段階の標準は'+bi.stdMl+'ml。見直すなら⚙の「今の1回量」。']);
   if(SYNCERR.length)al.push(['warn','Notionの設定で読めない値：'+SYNCERR.join('／')+'。その項目は前の値のまま。']);
   if(!KG)al.push(['info','体重が未設定。⚙で体重を入れるかぴよログに体重を記録すると、体重×150ml/kgで計算する。']);
@@ -964,9 +964,31 @@ function renderStdTable(days){
 /* ========== Notion 同期 ========== */
 let SYNCERR=[],SYNCSTAT='';
 const nm=(lo,hi)=>v=>{const n=Number(String(v).trim());if(!isFinite(n)||n<lo||n>hi)throw 0;return n;};
+const nl=v=>String(v??'').replace(/[;；／]/g,'\n'); // Notionで改行できないとき ; ； ／ を改行扱い
+// Notion「スケジュール」DB（30分刻み・担当・パパ/ママ/ふたり列）→ アプリ内部のシフト・スケジュール文字列
+function applyGrid(rows){
+  if(!Array.isArray(rows)||!rows.length)return false;
+  const JA={'パパ':'パパ','ママ':'ママ','ふたり':'ふたり'};
+  const fmtH=min=>{const h=Math.floor(min/60),m=min%60;return m?h+':'+pad(m):String(h);};
+  const rs=rows.filter(r=>Number.isFinite(r.min)).sort((a,b)=>a.min-b.min);
+  // 担当の連続区間 → bands
+  const runs=[];for(const r of rs){const w=JA[r.duty];if(!w)continue;if(runs.length&&runs[runs.length-1].who===w)continue;runs.push({from:r.min,who:w});}
+  if(runs.length>1&&runs[0].who===runs[runs.length-1].who)runs.shift(); // 日をまたいで同じ担当なら最後の区間に吸収
+  const bands=runs.map((x,i)=>fmtH(x.from)+'-'+fmtH(runs[(i+1)%runs.length].from)+' '+x.who).join('\n');
+  // セル → 「[曜] HH:MM 担当 内容」
+  const lines=[];
+  for(const r of rs){const t=pad(Math.floor(r.min/60))+':'+pad(r.min%60);
+    for(const [col,who] of [['papa','パパ'],['mama','ママ'],['both','ふたり']]){
+      for(let item of String(r[col]||'').split(/[／\n;；]/)){item=item.trim();if(!item)continue;
+        const m=item.match(/^([月火水木金土日]+)\s+(.+)$/);
+        if(m){for(const wd of m[1])lines.push(wd+' '+t+' '+who+' '+m[2]);}else lines.push(t+' '+who+' '+item);}}}
+  if(runs.length)S.bands=bands;
+  S.schedule=lines.join('\n');
+  return true;
+}
 const SYNC_FIELDS={
   birth:{label:'誕生日',get:()=>S.birth,set:v=>{v=String(v).trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||isNaN(new Date(v+'T00:00:00')))throw 0;S.birth=v;}},
-  feedOverride:{label:'文乃の1回量（ミルクのみ）',get:()=>S.feedOverride||'',set:v=>{const r=parseOverride(v);if(r.bad.length||r.items.some(o=>!(Number(o.val)>0)))throw 0;S.feedOverride=String(v).trim();}},
+  feedOverride:{label:'文乃の1回量（ミルクのみ）',get:()=>S.feedOverride||'',set:v=>{v=nl(v);const r=parseOverride(v);if(r.bad.length||r.items.some(o=>!(Number(o.val)>0)))throw 0;S.feedOverride=String(v).trim();}},
   linkWeight:{label:'体重に連動して増やす',get:()=>S.linkWeight!==false?'はい':'いいえ',set:v=>{v=String(v).trim();if(/^(はい|yes|true|on|1)$/i.test(v))S.linkWeight=true;else if(/^(いいえ|no|false|off|0)$/i.test(v))S.linkWeight=false;else throw 0;}},
   floorPerKg:{label:'正常範囲の下端 ml/kg',get:()=>S.floorPerKg,set:v=>{S.floorPerKg=nm(50,300)(v);}},
   capPerKg:{label:'正常範囲の上端 ml/kg',get:()=>S.capPerKg,set:v=>{S.capPerKg=nm(100,300)(v);}},
@@ -981,12 +1003,10 @@ const SYNC_FIELDS={
   halfBreast:{label:'胃内容の半減期 母乳・搾乳 分',get:()=>S.halfBreast,set:v=>{S.halfBreast=nm(10,300)(v);}},
   typeLabels:{label:'カスタム記録の名前',get:()=>S.typeLabels||'',set:v=>{S.typeLabels=String(v).trim();}},
   careSlots:{label:'保湿の予定時刻',get:()=>S.careSlots||'',set:v=>{v=String(v).trim();if(v&&!parseSlots(v).length)throw 0;S.careSlots=v;}},
-  bands:{label:'シフト',get:()=>S.bands==null?DEFAULT_BANDS:S.bands,set:v=>{const r=parseBands(v);if(r.bad.length||!r.bands.length)throw 0;S.bands=String(v).trim()===DEFAULT_BANDS?null:String(v);}},
-  schedule:{label:'スケジュール',get:()=>S.schedule==null?DEFAULT_SCHEDULE:S.schedule,set:v=>{const r=parseSchedule(v);if(r.bad.length)throw 0;S.schedule=String(v).trim()===DEFAULT_SCHEDULE?null:String(v);}},
-  weights:{label:'体重の記録',get:()=>(S.weights||[]).map(w=>w.d+' '+w.kg).join('\n'),set:v=>{const ws=parseWeights(v);if(ws===null)throw 0;const old={};for(const w of (S.weights||[]))old[w.d]=w;
+  weights:{label:'体重の記録',get:()=>(S.weights||[]).map(w=>w.d+' '+w.kg).join('\n'),set:v=>{v=nl(v);const ws=parseWeights(v);if(ws===null)throw 0;const old={};for(const w of (S.weights||[]))old[w.d]=w;
     S.weights=ws.map(w=>({d:w.d,kg:w.kg,src:old[w.d]&&Math.abs(old[w.d].kg-w.kg)<0.0005?old[w.d].src:(w.d===S.birth?'birth':'manual')}));
     const lw=S.weights[S.weights.length-1];S.wkg=lw?lw.kg:null;S.wdate=lw?lw.d:'';S.wsrc=lw?lw.src:'';}},
-  slotsOverride:{label:'定刻の変更',get:()=>S.slotsOverride||'',set:v=>{const r=parseOverride(v);if(r.bad.length||r.items.some(o=>!parseSlots(o.val).length))throw 0;S.slotsOverride=String(v).trim();}},
+  slotsOverride:{label:'定刻の変更',get:()=>S.slotsOverride||'',set:v=>{v=nl(v);const r=parseOverride(v);if(r.bad.length||r.items.some(o=>!parseSlots(o.val).length))throw 0;S.slotsOverride=String(v).trim();}},
 };
 function syncOn(){return !!(S.syncUrl&&S.syncPass);}
 function syncEndpoint(){return String(S.syncUrl).replace(/\/+$/,'')+'/settings';}
@@ -1001,6 +1021,7 @@ async function pullSync(){
     for(const row of (d.rows||[])){const f=SYNC_FIELDS[row.key];if(!f)continue;
       if(first&&String(row.value).trim()===''&&String(f.get()??'').trim()!==''){migrate.push(row.key);continue;} // 初回：Notionが空でこの端末に値があれば端末の値をNotionへ
       try{f.set(row.value);}catch(e){errs.push(f.label);}}
+    if(d.schedule&&Array.isArray(d.schedule))applyGrid(d.schedule);else if(d.schedule&&d.schedule.error)errs.push('スケジュール表（'+d.schedule.error.slice(0,40)+'）');
     SYNCERR=errs;S.syncAt=d.edited||new Date().toISOString();
     if(migrate.length)pushSync(migrate);
     if(JSON.stringify(S)!==snap){saveSettings();UI.autoKey='';}
@@ -1036,10 +1057,11 @@ function parseBands(text){
   const rows=[],bad=[];
   for(let line of String(text==null?DEFAULT_BANDS:text).split(/\n/)){
     line=line.replace(/#.*$/,'').replace(/　/g,' ').trim();if(!line)continue;
-    const m=line.match(/^(\d{1,2})(?:\s*[-〜~～]\s*(\d{1,2}))?\s+(\S+)$/);
+    const m=line.match(/^(\d{1,2}(?::\d{2}|\.5)?)(?:\s*[-〜~～]\s*(\d{1,2}(?::\d{2}|\.5)?))?\s+(\S+)$/);
     const w=m?WHO_OF[m[3]]:null;
-    if(!m||Number(m[1])>23||!w){bad.push(line);continue;}
-    rows.push({from:Number(m[1]),duty:w});
+    const toH=x=>{if(x.includes(':')){const [a,b]=x.split(':');return Number(a)+Number(b)/60;}return Number(x);};
+    if(!m||toH(m[1])>=24||!w){bad.push(line);continue;}
+    rows.push({from:toH(m[1]),duty:w});
   }
   rows.sort((a,b)=>a.from-b.from);
   const bands=rows.map((r,i)=>({from:r.from,to:rows[(i+1)%rows.length].from,duty:r.duty}));
@@ -1111,8 +1133,8 @@ function renderTasks(now,recs){
   // 帯（担当時間の背景）と項目を集める
   let bands='';const ev=[];let curStart=null,curEnd=null;
   for(let d=-1;d<=1;d++)for(const b of BANDS){
-    const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,b.from,0,0,0);
-    const end=new Date(start);end.setHours(end.getHours()+(b.from===b.to?24:(b.to-b.from+24)%24));
+    const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()+d,Math.floor(b.from),Math.round((b.from%1)*60),0,0);
+    const end=new Date(start.getTime()+(b.from===b.to?24:(b.to-b.from+24)%24)*3600000);
     if(end<=t0||start>t1)continue;
     const top=y(Math.max(start.getTime(),t0)),bot=y(Math.min(end.getTime(),t1));
     bands+='<div class="bd2 '+b.duty+'" style="top:'+top+'px;height:'+(bot-top)+'px"></div>';
