@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v46</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v47</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -294,10 +294,12 @@ table.st tr.cur td{background:var(--accent-soft)}
 
 
   <h3>1回量</h3>
+  <label style="margin:6px 0"><input type="checkbox" id="sStd"> <b>標準にお任せ</b>（1日量の目安を体重で換算した値を使う）</label>
   <div class="grid2">
-    <div><label>今の1回量（ミルクのみ）ml</label><input type="number" id="sMlNow" step="10" min="10"></div>
+    <div><label>手動の1回量（ミルクのみ）ml</label><input type="number" id="sMlNow" step="10" min="10"></div>
     <div><label>&nbsp;</label><label style="margin:0"><input type="checkbox" id="sLink"> 標準量を体重で換算する</label></div>
   </div>
+  <div class="note" id="mlNowStatus"></div>
   <div class="note" id="mlNowNote"></div>
   
   <div class="note" id="adjInfoView"></div>
@@ -462,18 +464,18 @@ let KG=null, KGSRC='', ADJINFO='', CRYHTML='';
 function baseInfo(days){
   const st=stageFor(days);const n=slotCount(st);const d0=Number(st.daily);const kg0=Number(st.kg)||0;
   let ml,how,daily;
-  if(days<8){ml=Math.max(10,(days+1)*10);daily=ml*n;how='生後'+(days+1)+'日目×10ml';return {ml,how,st,n,daily};}
+  if(days<8){ml=Math.max(10,(days+1)*10);daily=ml*n;how='生後'+(days+1)+'日目×10ml';return {ml,how,st,n,daily,exact:ml,stdMl:ml,stdDaily:daily,ov:null};}
   if(S.linkWeight!==false&&KG&&kg0>0){daily=Math.round(d0*KG/kg0);how='1日'+d0+'ml@'+kg0+'kg → '+KG+'kgで'+daily+'ml';}
   else{daily=d0;how='1日'+d0+'ml（固定）';}
   const cap=dailyCap(days);const rawDaily=daily;
   if(daily>cap){how+='、正常範囲の上端'+cap+'で頭打ち';daily=cap;}
-  ml=floor10(daily/n);how+='、÷'+n+'回＝'+ml+'ml';
+  ml=Math.round(daily/n);how+='、÷'+n+'回＝'+ml+'ml';
   const stdMl=Math.max(0,ml),stdDaily=daily;
   const ov=overrideFor(days,S.feedOverride);const ovMl=ov?round10(Number(ov.val)):null;
   if(ovMl){const capMl=floor10(cap/n);const use=Math.min(ovMl,capMl);
     how='標準'+stdMl+'ml（'+how+'）に対し文乃設定'+ovMl+'ml（生後'+ov.from+'日〜）'+(ovMl>capMl?'→正常範囲の上端'+capMl+'mlに丸め':'');
-    return {ml:use,how,st,n,daily:use*n,over:ovMl>capMl,rawMl:ovMl,cap,stdMl,stdDaily,ov:ovMl,ovFrom:ov.from,ovStale:ov.from<Number(st.from)};}
-  return {ml:stdMl,how,st,n,daily,over:rawDaily>cap,rawMl:round10(rawDaily/n),cap,stdMl,stdDaily,ov:null};
+    return {ml:use,exact:use,how,st,n,daily:use*n,over:ovMl>capMl,rawMl:ovMl,cap,stdMl,stdDaily,ov:ovMl,ovFrom:ov.from,ovStale:ov.from<Number(st.from)};}
+  return {ml:stdMl,exact:daily/n,how,st,n,daily,over:rawDaily>cap,rawMl:round10(rawDaily/n),cap,stdMl,stdDaily,ov:null};
 }
 function baseFormulaOnly(days){return baseInfo(days).ml;}
 // 体重あたりの1日量の範囲：〜3ヶ月 150〜200（設定値）、3〜6ヶ月 120〜170、6ヶ月〜 90〜140（Nutricia 150/120/100を中心に±）。AAP上限960
@@ -605,7 +607,7 @@ function render(){
   $('nextIn').textContent=ns?fmtIn(ns-now):'';
   const minToNext=ns?(ns-now)/60000:0;
   const night=inNight(now.getHours());
-  const base0=baseFormulaOnly(days);
+  const base0=baseInfo(days).exact; // 1日量÷回数（丸めなし）。空腹メーターと推奨の100%
   // 定刻間隔（時間）
   let intervalH=3;
   if(ns&&ps)intervalH=Math.max(1.5,Math.min(5,(ns-ps)/3600000));
@@ -696,7 +698,7 @@ function render(){
       '<line x1="'+padL+'" y1="'+y(base0)+'" x2="'+(W_-padR)+'" y2="'+y(base0)+'" stroke="var(--line)" stroke-dasharray="2,3"/>'+
       '<line x1="'+padL+'" y1="'+y(base0*0.5)+'" x2="'+(W_-padR)+'" y2="'+y(base0*0.5)+'" stroke="var(--line)" stroke-dasharray="1,4"/>'+
       '<rect x="'+padL+'" y="'+y(base0*0.15)+'" width="'+(W_-padL-padR)+'" height="'+(y(0)-y(base0*0.15))+'" fill="var(--warn)" opacity="0.08"/>'+
-      '<text x="'+(W_-padR-2)+'" y="'+(y(base0)-2)+'" font-size="9" text-anchor="end" fill="var(--muted)">100%＝1回の基準量'+base0+'ml</text>'+
+      '<text x="'+(W_-padR-2)+'" y="'+(y(base0)-2)+'" font-size="9" text-anchor="end" fill="var(--muted)">100%＝1回の基準量'+Math.round(base0)+'ml（1日量÷回数）</text>'+
       '<text x="'+(W_-padR-2)+'" y="'+(y(base0*0.15)-2)+'" font-size="9" text-anchor="end" fill="var(--warn)">ほぼ空（15%未満）</text>'+
       marks+care+
       '<path d="'+area+'" fill="var(--accent)" opacity="0.18"/>'+
@@ -760,7 +762,7 @@ function render(){
   if(UI.mode==='A')ml-=Math.min(Number(UI.bfMin||0),Number(S.bfCap||20))*Number(S.coef||0);
   ml-=Number(ebmNow||0);
   const autoOut=round10(ml);
-  let calc='基準 '+base0+'ml（'+baseInfo(days).how+'）';
+  let calc='基準 '+Math.round(base0)+'ml（1日量'+round10(baseInfo(days).daily)+'÷'+baseInfo(days).n+'回。'+baseInfo(days).how+'）';
   calc+=' × 不足率'+Math.round(hungerNow*100)+'%（直近'+intervalH+'時間の摂取 '+(lastEv||'なし')+' を経過時間で按分して差し引き。'+intervalH+'時間＝定刻間隔）';
   if(UI.mode==='A')calc+='、母乳1分≒'+S.coef+'ml';
   let out=UI.outManual!=null?UI.outManual:(enough?0:autoOut);
@@ -787,8 +789,7 @@ function render(){
   const tTotal=Math.round(tF+tE+tBeq);
   // 1日の必要量：下限（150ml/kg）・目標（表のml/kg）・上限（capPerKg）
   let low,target,high;
-  if(KG){low=dailyFloor(days);target=baseFormulaOnly(days)*slotCount(stg);high=cap;}
-  else{low=dailyFloor(days);target=baseFormulaOnly(days)*slotCount(stg);high=cap;}
+  low=dailyFloor(days);target=round10(bi.daily);high=cap;
   const dayFrac=(now-d0)/86400000;
   const expectNow=Math.round(target*dayFrac);
 
@@ -827,7 +828,7 @@ function render(){
   $('todayLabel').textContent=(now.getMonth()+1)+'/'+now.getDate()+' 0:00〜';
   $('tdTotal').textContent=tTotal;
   const hardCap=960;const capped=KG&&round10(KG*perKgRange(days)[1])>hardCap;
-  $('tdRange').textContent='1日：下限'+low+'・目標'+target+'・正常範囲の上端'+high+' ml（目標＝1回'+baseFormulaOnly(days)+'ml×'+slotCount(stg)+'回'+(KG?'、範囲＝'+KG+'kg×'+perKgRange(days)[0]+'〜'+perKgRange(days)[1]+'ml/kg'+(capped?'、上端はAAPの絶対上限960':''):'')+'）。上端超えは即危険ではないが、成長曲線で帯を上に越えていれば減らす。';
+  $('tdRange').textContent='1日：下限'+low+'・目標'+target+'・正常範囲の上端'+high+' ml（目標＝1日量の目安'+(bi.ov?'（文乃設定'+bi.ov+'ml'+(bi.over?'→上端'+bi.ml+'ml':'')+'×'+bi.n+'回）':'（標準を体重換算）')+'、1回あたり'+Math.round(bi.exact)+'ml'+(KG?'、範囲＝'+KG+'kg×'+perKgRange(days)[0]+'〜'+perKgRange(days)[1]+'ml/kg'+(capped?'、上端はAAPの絶対上限960':''):'')+'）。上端超えは即危険ではないが、成長曲線で帯を上に越えていれば減らす。';
   {
     const Wb=340,Hb=58,pl=6,pr=6;const maxV=high;
     const xb=v=>pl+(Math.min(v,maxV)/maxV)*(Wb-pl-pr);
@@ -948,16 +949,16 @@ function renderStdTable(days){
   const rows=DEFAULT_STAGES.map((st,i)=>{
     const n=slotCount(stageFor(st.from));const next=DEFAULT_STAGES[i+1];
     const label=st.from+'〜'+(next?(next.from-1):'')+'日';
-    const stdMl=floor10(st.daily/n);
+    const stdMl=Math.round(st.daily/n);
     const isCur=st.from===Number(cur.from);
-    let wMl='—';if(link&&isCur){const d=Math.min(dailyCap(days),Math.round(st.daily*KG/st.kg));wMl=floor10(d/n)+'';}
+    let wMl='—';if(link&&isCur){const d=Math.min(dailyCap(days),Math.round(st.daily*KG/st.kg));wMl=Math.round(d/n)+'';}
     let ovTxt='';const ov=[...fo].reverse().find(o=>o.from>=st.from&&(!next||o.from<next.from));
     const inherit=!ov&&fo.length&&overrideFor(st.from,S.feedOverride);
     if(ov)ovTxt='<b>'+escapeHtml(ov.val)+'</b>';else if(inherit)ovTxt='<span class="muted">'+escapeHtml(inherit.val)+'（継続）</span>';else ovTxt='<span class="muted">標準</span>';
     return '<tr'+(isCur?' class="cur"':'')+'><td>'+label+(isCur?' ◀':'')+'</td><td>'+st.daily+'<small>÷'+n+'回→</small><b>'+stdMl+'</b><br><small class="muted">@'+st.kg+'kg</small></td><td>'+wMl+(link&&isCur?'<small>×'+n+'回</small>':'')+'</td><td>'+ovTxt+'</td></tr>';
   }).join('');
   $('stdTable').innerHTML='<table class="st" style="font-size:12px"><thead><tr><th>日齢</th><th>標準 1日→1回</th><th>体重換算 1回</th><th>文乃 1回</th></tr></thead><tbody>'+rows+'</tbody></table>';
-  $('stdNote').textContent='標準＝明治ほほえみ・グリコ アイクレオ・たまひよ・京都市の1日量の中央値（基準体重での量）。1回量＝1日量÷回数を10ml単位に切り捨て。体重換算＝標準×最新体重÷基準体重（今の段階のみ表示）。「継続」＝前の段階で決めた値がそのまま使われる。文乃＝⚙で決めた値。実際に使う1回量は、文乃設定があればそれ、なければ体重換算。どちらも正常範囲の上端（体重×'+perKgRange(days)[1]+'ml/kg、最大960）で頭打ち。生後0〜7日は日数×10ml。';
+  $('stdNote').textContent='標準＝明治ほほえみ・グリコ アイクレオ・たまひよ・京都市の1日量の中央値（基準体重での量）。1回量＝1日量÷回数。実際にあげる量は推奨計算のうえ10ml単位に丸める。体重換算＝標準×最新体重÷基準体重（今の段階のみ表示）。「継続」＝前の段階で決めた値がそのまま使われる。文乃＝⚙で決めた値。実際に使う1回量は、文乃設定があればそれ、なければ体重換算。どちらも正常範囲の上端（体重×'+perKgRange(days)[1]+'ml/kg、最大960）で頭打ち。生後0〜7日は日数×10ml。';
 }
 
 /* ========== Notion 同期 ========== */
@@ -1247,6 +1248,7 @@ $('btnRefresh').onclick=()=>{if(syncOn())pullSync().then(()=>render());const w=6
 $('btnSettings').onclick=openSettings;
 $('btnCry').onclick=()=>{const b=$('cryBox');b.classList.toggle('hidden');b.innerHTML=CRYHTML;$('btnCry').textContent=b.classList.contains('hidden')?'原因を調べる':'閉じる';};
 $('sMlNow').addEventListener('input',updateMlNowNote);
+$('sStd').addEventListener('change',()=>{const on=$('sStd').checked;$('sMlNow').disabled=on;if(on){$('sMlNow').value=round10(baseInfo(ageDays(new Date())).stdMl);}updateMlNowNote();});
 $('sLink').addEventListener('change',updateMlNowNote);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchFeed(false);if(syncOn()&&Date.now()-SYNCLAST>60000)pullSync().then(()=>render());}});
 let SYNCLAST=0;const _pull=pullSync;pullSync=async function(){SYNCLAST=Date.now();return _pull();};
@@ -1261,7 +1263,9 @@ function openSettings(){
   $('sFeed').value=S.feedUrl||'';$('sDemo').checked=!!S.demo;
 
 
-  {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=bi.ml;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;updateMlNowNote();}
+  {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=round10(bi.ml);$('sStd').checked=!bi.ov;$('sMlNow').disabled=!bi.ov;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;
+   $('mlNowStatus').textContent=bi.ov?'いまは文乃設定 '+bi.ov+'ml（生後'+bi.ovFrom+'日〜）'+(bi.over?'。正常範囲の上端'+bi.ml+'mlに丸めて適用':'')+'。標準なら'+bi.stdMl+'ml。':'いまは標準（体重換算）'+bi.stdMl+'ml。手動にするならチェックを外して数字を入れる。';
+   updateMlNowNote();}
   $('sSyncUrl').value=S.syncUrl||'';$('sSyncPass').value=S.syncPass||'';if(SYNCSTAT)$('syncStat').textContent=SYNCSTAT;
   {const c={};for(const r of records()){const k=r.type+(r.subType?'/'+r.subType:'');c[k]=(c[k]||0)+1;}
    const keys=Object.keys(c).sort();$('feedTypes').textContent=keys.length?keys.map(k=>k+'（'+typeJa(k.split('/')[0])+'）'+c[k]+'件').join('、'):'データなし';
@@ -1296,12 +1300,15 @@ function closeSettings(save){
     if(url&&!/^https:\/\/feed\.piyolog\.com\/v1\/feed\//.test(url)){alert('フィードURLの形式が違う。https://feed.piyolog.com/v1/feed/… を貼る。');return;}
     S.feedUrl=url;S.demo=$('sDemo').checked;S.linkWeight=$('sLink').checked;
     const changed=[];
-    {const d=ageDays(new Date());const cur=stageFor(d);let want=Number($('sMlNow').value);const n=slotCount(cur);
+    if($('sStd').checked){const d=ageDays(new Date());const before=S.feedOverride||'';
+     S.feedOverride=parseOverride(S.feedOverride).items.filter(o=>o.from>d).map(o=>o.from+' '+o.val).join('\n');
+     if(S.feedOverride!==before)changed.push('feedOverride');}
+    else{const d=ageDays(new Date());const cur=stageFor(d);let want=Number($('sMlNow').value);const n=slotCount(cur);
      const capMl=floor10(dailyCap(d)/n);
      let clamped=false;
      if(want>capMl){alert('正常範囲外の値（'+want+'ml×'+n+'回＝'+(want*n)+'ml、上端は'+dailyCap(d)+'ml＝体重×'+perKgRange(d)[1]+'ml/kg）。正常範囲いっぱいの'+capMl+'mlで設定した。');want=capMl;clamped=true;}
      const bi=baseInfo(d);
-     if(want>0&&(clamped||want!==bi.ml)){ // 今の段階の行を書き換え（無ければ追加）
+     if(want>0&&(clamped||!bi.ov||want!==bi.ml)){ // 手動：今の段階の行を書き換え（無ければ追加）
        const items=parseOverride(S.feedOverride).items.filter(o=>o.from!==Number(cur.from));
        items.push({from:Number(cur.from),val:String(round10(want))});
        S.feedOverride=items.sort((a,b)=>a.from-b.from).map(o=>o.from+' '+o.val).join('\n');changed.push('feedOverride');}}
