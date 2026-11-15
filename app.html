@@ -127,6 +127,9 @@ ul.tl li.now+li{border-top:0}
 /* settings */
 .sheet{position:fixed;inset:0;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 12px 60px;display:none;z-index:10}
 .sheet.open{display:block}
+.sheet .synced-only{display:none}
+.sheet.synced .nsync{display:none}
+.sheet.synced .synced-only{display:block}
 .sheet .shhd{position:sticky;top:0;z-index:2;background:var(--bg);padding:max(10px,env(safe-area-inset-top)) 0 6px;margin-bottom:6px;border-bottom:1px solid var(--line)}
 body.lock{position:fixed;width:100%;overflow:hidden}
 .sheet h1{font-size:18px;margin:6px 0 12px}
@@ -148,7 +151,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v42</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v43</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -279,6 +282,7 @@ table.st tr.cur td{background:var(--accent-soft)}
   <label>ぴよログ データフィードURL</label>
   <input type="url" id="sFeed" placeholder="https://feed.piyolog.com/v1/feed/24h/…/…" autocapitalize="off" autocorrect="off" spellcheck="false">
   <div class="note">この端末内にのみ保存。共有リンクには含まれない。</div>
+  <div class="nsync">
   <label>生年月日</label>
   <input type="date" id="sBirth">
   <label>カスタム記録の名前（type=名前、カンマ区切り）</label>
@@ -286,11 +290,23 @@ table.st tr.cur td{background:var(--accent-soft)}
   <div class="note">ぴよログのカスタム記録はフィード上の型名で届く。設定最下部の「記録種別」で型名を確認して対応づける。先頭のものが空腹メーターに表示される。</div>
   <label>その予定時刻（例 0,8,16）</label>
   <input type="text" id="sCareSlots" placeholder="0,8,16">
+  </div>
   <label><input type="checkbox" id="sDemo"> デモデータで動作確認（フィードを使わない）</label>
+
+  <h3>Notionで設定を管理</h3>
+  <label>同期URL（Cloudflare WorkerのURL）</label>
+  <input type="url" id="sSyncUrl" placeholder="https://ofumi-sync.xxxx.workers.dev" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <label>合言葉</label>
+  <input type="text" id="sSyncPass" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <div class="note" id="syncNote">この端末内にのみ保存。設定するとNotion「おふみるく 設定」の値を起動・更新時に取り込み、この画面で保存した内容をNotionに書き戻す。</div>
+  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" id="notionLink" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">Notionを開く</a></div>
+  <div class="note synced-only">設定はNotion「おふみるく 設定」で管理中。ここには端末固有の項目と「今の1回量」だけを表示。Notionで変えた値は起動・更新時に反映。</div>
+
 
   <h3>時間帯</h3>
   <div class="note">パパ担当の時間帯（下のシフト）は「ミルクのみ」タブが初期選択で、定刻前に泣いたらミルク少量。ママ・ふたりの時間帯は母乳＋ミルクが初期選択で、定刻前は母乳。</div>
 
+  <div class="nsync">
   <h3>定刻前</h3>
   <div class="grid2">
     <div><label>次の定刻まで何分超で「定刻前」</label><input type="number" id="sPreMin" min="0"></div>
@@ -306,19 +322,23 @@ table.st tr.cur td{background:var(--accent-soft)}
     <div><label>前回から何時間で警告</label><input type="number" id="sMaxGapH" min="1" step="0.5"></div>
   </div>
 
+  </div>
   <h3>1回量</h3>
   <div class="grid2">
     <div><label>今の1回量（ミルクのみ）ml</label><input type="number" id="sMlNow" step="10" min="10"></div>
     <div><label>&nbsp;</label><label style="margin:0"><input type="checkbox" id="sLink"> 標準量を体重で換算する</label></div>
   </div>
   <div class="note" id="mlNowNote"></div>
+  <div class="nsync">
   <label>文乃の1回量（1行「日齢〜 ml」。空なら標準）</label>
   <textarea id="sFeedOv" placeholder="15 90&#10;30 100" style="min-height:60px;font-family:ui-monospace,monospace"></textarea>
   <label>定刻の変更（1行「日齢〜 時刻リスト」。空なら標準表の定刻）</label>
   <textarea id="sSlotOv" placeholder="30 2,6,10,14,18,22" style="min-height:44px;font-family:ui-monospace,monospace"></textarea>
-  <div class="note">上の「今の1回量」を変えると、今の段階の行がここに書かれる。標準表はメイン画面「1日量の目安」。</div>
+  <div class="note">上の「今の1回量」を変えると、今の段階の行がここ（Notionでは「文乃の1回量」）に書かれる。標準表はメイン画面「1日量の目安」。</div>
+  </div>
   <div class="note" id="adjInfoView"></div>
 
+  <div class="nsync">
   <h3>母乳の換算</h3>
   <div class="grid2">
     <div><label>母乳 1分 ≒ ミルク ml</label><input type="number" id="sCoef" min="0" step="0.5"></div>
@@ -353,14 +373,6 @@ table.st tr.cur td{background:var(--accent-soft)}
   <div class="note">1行に「時刻 担当 内容」。担当は パパ／ママ／ふたり。曜日限定は行頭に 月〜日（例「金 07:00 パパ 燃えるゴミ」）。内容に ミルク・母乳・搾乳・保湿・沐浴 を含む行はぴよログの記録で済判定。変えたら下の設定コードで相手に送る。</div>
   <div class="actions"><button class="btn sm" onclick="resetSched()">初期値に戻す</button></div>
 
-  <h3>Notionで設定を管理</h3>
-  <label>同期URL（Cloudflare WorkerのURL）</label>
-  <input type="url" id="sSyncUrl" placeholder="https://ofumi-sync.xxxx.workers.dev" autocapitalize="off" autocorrect="off" spellcheck="false">
-  <label>合言葉</label>
-  <input type="text" id="sSyncPass" autocapitalize="off" autocorrect="off" spellcheck="false">
-  <div class="note" id="syncNote">この端末内にのみ保存。設定するとNotion「おふみるく 設定」の値を起動・更新時に取り込み、この画面で保存した内容をNotionに書き戻す。</div>
-  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button></div>
-
   <h3>夫婦で同じ設定にする（Notionを使わない場合）</h3>
   <div class="actions">
     <button class="btn" onclick="exportCode()">設定コードを表示</button>
@@ -371,6 +383,7 @@ table.st tr.cur td{background:var(--accent-soft)}
   <textarea id="codeIn" placeholder="LINEで受け取ったコードをここに貼る"></textarea>
   <div class="actions"><button class="btn" onclick="importCode()">取り込む</button></div>
   <div class="note">フィードURLは含まない。取り込むと、この端末のフィードURL以外の設定が上書きされる。</div>
+  </div>
 
   <div class="actions">
     <button class="btn pri" onclick="closeSettings(true)">保存</button>
@@ -1311,7 +1324,8 @@ $('tabB').onclick=()=>{UI.mode='B';UI.outManual=null;render();};
 $('btnRefresh').onclick=()=>{if(syncOn())pullSync().then(()=>render());const w=60000-(Date.now()-FEEDAT);if(!S.demo&&w>0&&FEED){lastErr='前回取得から60秒未満。あと'+Math.ceil(w/1000)+'秒。';render();setTimeout(()=>{lastErr='';render();},2000);return;}fetchFeed(true);};
 $('btnSettings').onclick=openSettings;
 $('btnCry').onclick=()=>{const b=$('cryBox');b.classList.toggle('hidden');b.innerHTML=CRYHTML;$('btnCry').textContent=b.classList.contains('hidden')?'原因を調べる':'閉じる';};
-$('sMlNow').addEventListener('input',updateMlNowNote);$('sLink').addEventListener('change',updateMlNowNote);
+$('sMlNow').addEventListener('input',updateMlNowNote);
+for(const id of ['sSyncUrl','sSyncPass'])$(id).addEventListener('input',()=>{$('sheet').classList.toggle('synced',!!($('sSyncUrl').value.trim()&&$('sSyncPass').value.trim()));});$('sLink').addEventListener('change',updateMlNowNote);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchFeed(false);if(syncOn()&&Date.now()-SYNCLAST>60000)pullSync().then(()=>render());}});
 let SYNCLAST=0;const _pull=pullSync;pullSync=async function(){SYNCLAST=Date.now();return _pull();};
 if(syncOn())pullSync().then(()=>render());
@@ -1335,6 +1349,7 @@ function openSettings(){
    const keys=Object.keys(c).sort();$('feedTypes').textContent=keys.length?keys.map(k=>k+'（'+typeJa(k.split('/')[0])+'）'+c[k]+'件').join('、'):'データなし';
    const extra=records().filter(r=>!['BreastFeeding','Formula','ExpressedBreastMilk','Pumping','Vomiting','Weight','Sleep','WakeUp','Pee','Poop','Drink','Temperature'].includes(r.type)).slice(-5);
    if(extra.length)$('feedTypes').textContent+='　例：'+extra.map(r=>fmtHM(r.t)+' '+JSON.stringify(Object.assign({},r,{t:undefined,datetime:undefined,event_id:undefined}))).join(' / ');}
+  $('sheet').classList.toggle('synced',syncOn());
   lockBody();$('sheet').classList.add('open');$('sheet').scrollTop=0;
 }
 function updateMlNowNote(){
