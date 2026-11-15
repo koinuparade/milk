@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v44</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v46</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -364,7 +364,7 @@ const DEFAULTS={
   bands:null, // null=初期値（DEFAULT_BANDS）。1行「開始-終了 担当」
   feedOverride:'', // 文乃の1回量 1行「日齢〜 ml」
   slotsOverride:'', // 定刻の変更 1行「日齢〜 時刻リスト」
-  syncUrl:'', syncPass:'', syncAt:'', // Notion同期（端末のみ）
+  syncUrl:'https://ofumi-sync.tamyoshi1229-nvenetia.workers.dev', syncPass:'', syncAt:'', // Notion同期。合言葉とフィードURLは端末のみ
   wkg:null, wdate:'',
   weights:[{d:'2026-10-20',kg:3.22,src:'birth'}], // 体重履歴 {d:'YYYY-MM-DD',kg,src:birth|piyolog|manual}
 };
@@ -954,10 +954,10 @@ function renderStdTable(days){
     let ovTxt='';const ov=[...fo].reverse().find(o=>o.from>=st.from&&(!next||o.from<next.from));
     const inherit=!ov&&fo.length&&overrideFor(st.from,S.feedOverride);
     if(ov)ovTxt='<b>'+escapeHtml(ov.val)+'</b>';else if(inherit)ovTxt='<span class="muted">'+escapeHtml(inherit.val)+'（継続）</span>';else ovTxt='<span class="muted">標準</span>';
-    return '<tr'+(isCur?' class="cur"':'')+'><td>'+label+(isCur?' ◀':'')+'</td><td>'+stdMl+'<small>×'+n+'＝'+st.daily+'</small><br><small class="muted">@'+st.kg+'kg</small></td><td>'+wMl+(link&&isCur?'<small>×'+n+'</small>':'')+'</td><td>'+ovTxt+'</td></tr>';
+    return '<tr'+(isCur?' class="cur"':'')+'><td>'+label+(isCur?' ◀':'')+'</td><td>'+st.daily+'<small>÷'+n+'回→</small><b>'+stdMl+'</b><br><small class="muted">@'+st.kg+'kg</small></td><td>'+wMl+(link&&isCur?'<small>×'+n+'回</small>':'')+'</td><td>'+ovTxt+'</td></tr>';
   }).join('');
-  $('stdTable').innerHTML='<table class="st" style="font-size:12px"><thead><tr><th>日齢</th><th>標準1回×回＝1日</th><th>体重換算</th><th>文乃</th></tr></thead><tbody>'+rows+'</tbody></table>';
-  $('stdNote').textContent='標準＝明治ほほえみ・グリコ アイクレオ・たまひよ・京都市の「1回量×回数」の中央値（基準体重での量）。体重換算＝標準×最新体重÷基準体重（今の段階のみ表示）。「継続」＝前の段階で決めた値がそのまま使われる。文乃＝⚙で決めた値。実際に使う1回量は、文乃設定があればそれ、なければ体重換算。どちらも正常範囲の上端（体重×'+perKgRange(days)[1]+'ml/kg、最大960）で頭打ち。生後0〜7日は日数×10ml。';
+  $('stdTable').innerHTML='<table class="st" style="font-size:12px"><thead><tr><th>日齢</th><th>標準 1日→1回</th><th>体重換算 1回</th><th>文乃 1回</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  $('stdNote').textContent='標準＝明治ほほえみ・グリコ アイクレオ・たまひよ・京都市の1日量の中央値（基準体重での量）。1回量＝1日量÷回数を10ml単位に切り捨て。体重換算＝標準×最新体重÷基準体重（今の段階のみ表示）。「継続」＝前の段階で決めた値がそのまま使われる。文乃＝⚙で決めた値。実際に使う1回量は、文乃設定があればそれ、なければ体重換算。どちらも正常範囲の上端（体重×'+perKgRange(days)[1]+'ml/kg、最大960）で頭打ち。生後0〜7日は日数×10ml。';
 }
 
 /* ========== Notion 同期 ========== */
