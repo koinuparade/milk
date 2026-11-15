@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v49</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v50</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -288,8 +288,8 @@ table.st tr.cur td{background:var(--accent-soft)}
   <label>合言葉</label>
   <input type="text" id="sSyncPass" autocapitalize="off" autocorrect="off" spellcheck="false">
   <div class="note" id="syncNote">この端末内にのみ保存。設定するとNotion「おふみるく 設定」の値を起動・更新時に取り込み、この画面で保存した内容をNotionに書き戻す。</div>
-  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">設定を開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8159bc5efcc56c31187f" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">スケジュールを開く</a></div>
-  <div class="note">設定はNotion「おふみるく 設定」、シフトとやることはNotion「おふみるく スケジュール」（30分刻み。担当列＝シフト、パパ／ママ／ふたり列＝やること）で編集する。Notionで変えた値はアプリの起動・更新時に反映。</div>
+  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">設定を開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8159bc5efcc56c31187f" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">スケジュールを開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a81e9a3e7c2625fbb8be4" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">週間タスクを開く</a></div>
+  <div class="note">設定はNotion「おふみるく 設定」、シフトと毎日のやることはNotion「おふみるく スケジュール」（30分刻み。担当列＝シフト）、曜日ごとのことは「おふみるく 週間タスク」で編集する。Notionで変えた値はアプリの起動・更新時に反映。</div>
   <div class="note" id="syncStat"></div>
   <div class="note" id="mlStatus"></div>
 
@@ -957,7 +957,7 @@ let SYNCERR=[],SYNCSTAT='';
 const nm=(lo,hi)=>v=>{const n=Number(String(v).trim());if(!isFinite(n)||n<lo||n>hi)throw 0;return n;};
 const nl=v=>String(v??'').replace(/[;；／]/g,'\n'); // Notionで改行できないとき ; ； ／ を改行扱い
 // Notion「スケジュール」DB（30分刻み・担当・パパ/ママ/ふたり列）→ アプリ内部のシフト・スケジュール文字列
-function applyGrid(rows){
+function applyGrid(rows,weekly){
   if(!Array.isArray(rows)||!rows.length)return false;
   const JA={'パパ':'パパ','ママ':'ママ','ふたり':'ふたり'};
   const fmtH=min=>{const h=Math.floor(min/60),m=min%60;return m?h+':'+pad(m):String(h);};
@@ -973,6 +973,9 @@ function applyGrid(rows){
       for(let item of String(r[col]||'').split(/[／\n;；]/)){item=item.trim();if(!item)continue;
         const m=item.match(/^([月火水木金土日]+)\s+(.+)$/);
         if(m){for(const wd of m[1])lines.push(wd+' '+t+' '+who+' '+m[2]);}else lines.push(t+' '+who+' '+item);}}}
+  // 週間タスク表 → 「曜 HH:MM 担当 内容」
+  if(Array.isArray(weekly))for(const w of weekly){const m=String(w.t||'').match(/^(\d{1,2}):(\d{2})$/);const who=JA[w.duty];if(!m||!who||!w.what)continue;
+    const t=pad(Number(m[1]))+':'+m[2];for(const wd of (w.days||[]))if('日月火水木金土'.includes(wd))lines.push(wd+' '+t+' '+who+' '+w.what);}
   if(runs.length)S.bands=bands;
   S.schedule=lines.join('\n');
   return true;
@@ -1012,7 +1015,8 @@ async function pullSync(){
     for(const row of (d.rows||[])){const f=SYNC_FIELDS[row.key];if(!f)continue;
       if(first&&String(row.value).trim()===''&&String(f.get()??'').trim()!==''){migrate.push(row.key);continue;} // 初回：Notionが空でこの端末に値があれば端末の値をNotionへ
       try{f.set(row.value);}catch(e){errs.push(f.label);}}
-    if(d.schedule&&Array.isArray(d.schedule))applyGrid(d.schedule);else if(d.schedule&&d.schedule.error)errs.push('スケジュール表（'+d.schedule.error.slice(0,40)+'）');
+    if(d.schedule&&Array.isArray(d.schedule))applyGrid(d.schedule,Array.isArray(d.weekly)?d.weekly:[]);else if(d.schedule&&d.schedule.error)errs.push('スケジュール表（'+d.schedule.error.slice(0,40)+'）');
+    if(d.weekly&&d.weekly.error)errs.push('週間タスク表（'+d.weekly.error.slice(0,40)+'）');
     SYNCERR=errs;S.syncAt=d.edited||new Date().toISOString();
     if(migrate.length)pushSync(migrate);
     if(JSON.stringify(S)!==snap){saveSettings();UI.autoKey='';}
