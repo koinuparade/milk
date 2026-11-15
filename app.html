@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v48</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v49</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -291,18 +291,9 @@ table.st tr.cur td{background:var(--accent-soft)}
   <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">設定を開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8159bc5efcc56c31187f" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">スケジュールを開く</a></div>
   <div class="note">設定はNotion「おふみるく 設定」、シフトとやることはNotion「おふみるく スケジュール」（30分刻み。担当列＝シフト、パパ／ママ／ふたり列＝やること）で編集する。Notionで変えた値はアプリの起動・更新時に反映。</div>
   <div class="note" id="syncStat"></div>
+  <div class="note" id="mlStatus"></div>
 
 
-  <h3>1回量</h3>
-  <label style="margin:6px 0"><input type="checkbox" id="sStd"> <b>標準にお任せ</b>（1日量の目安を体重で換算した値を使う）</label>
-  <div class="grid2">
-    <div><label>手動の1回量（ミルクのみ）ml</label><input type="number" id="sMlNow" step="10" min="10"></div>
-    <div><label>&nbsp;</label><label style="margin:0"><input type="checkbox" id="sLink"> 標準量を体重で換算する</label></div>
-  </div>
-  <div class="note" id="mlNowStatus"></div>
-  <div class="note" id="mlNowNote"></div>
-  
-  <div class="note" id="adjInfoView"></div>
 
   
 
@@ -1269,9 +1260,7 @@ $('tabB').onclick=()=>{UI.mode='B';UI.outManual=null;render();};
 $('btnRefresh').onclick=()=>{if(syncOn())pullSync().then(()=>render());const w=60000-(Date.now()-FEEDAT);if(!S.demo&&w>0&&FEED){lastErr='前回取得から60秒未満。あと'+Math.ceil(w/1000)+'秒。';render();setTimeout(()=>{lastErr='';render();},2000);return;}fetchFeed(true);};
 $('btnSettings').onclick=openSettings;
 $('btnCry').onclick=()=>{const b=$('cryBox');b.classList.toggle('hidden');b.innerHTML=CRYHTML;$('btnCry').textContent=b.classList.contains('hidden')?'原因を調べる':'閉じる';};
-$('sMlNow').addEventListener('input',updateMlNowNote);
-$('sStd').addEventListener('change',()=>{const on=$('sStd').checked;$('sMlNow').disabled=on;if(on){$('sMlNow').value=round10(baseInfo(ageDays(new Date())).stdMl);}updateMlNowNote();});
-$('sLink').addEventListener('change',updateMlNowNote);
+
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchFeed(false);if(syncOn()&&Date.now()-SYNCLAST>60000)pullSync().then(()=>render());}});
 let SYNCLAST=0;const _pull=pullSync;pullSync=async function(){SYNCLAST=Date.now();return _pull();};
 if(syncOn())pullSync().then(()=>render());
@@ -1285,23 +1274,14 @@ function openSettings(){
   $('sFeed').value=S.feedUrl||'';$('sDemo').checked=!!S.demo;
 
 
-  {const d=ageDays(new Date());const bi=baseInfo(d);$('sMlNow').value=round10(bi.ml);$('sStd').checked=!bi.ov;$('sMlNow').disabled=!bi.ov;$('sLink').checked=S.linkWeight!==false;$('adjInfoView').textContent=ADJINFO;
-   $('mlNowStatus').textContent=bi.ov?'いまは文乃設定 '+bi.ov+'ml（生後'+bi.ovFrom+'日〜）'+(bi.over?'。正常範囲の上端'+bi.ml+'mlに丸めて適用':'')+'。標準なら'+bi.stdMl+'ml。':'いまは標準（体重換算）'+bi.stdMl+'ml。手動にするならチェックを外して数字を入れる。';
-   updateMlNowNote();}
+  {const d=ageDays(new Date());const bi=baseInfo(d);
+   $('mlStatus').textContent='いまの1回量：'+(bi.ov?'文乃設定 '+bi.ov+'ml（生後'+bi.ovFrom+'日〜）'+(bi.over?'。正常範囲の上端'+bi.ml+'mlに丸めて適用':'')+'。標準なら'+bi.stdMl+'ml':'標準（体重換算）'+Math.round(bi.exact)+'ml')+'。変えるならNotion「文乃の1回量」（空＝標準にお任せ）。';}
   $('sSyncUrl').value=S.syncUrl||'';$('sSyncPass').value=S.syncPass||'';if(SYNCSTAT)$('syncStat').textContent=SYNCSTAT;
   {const c={};for(const r of records()){const k=r.type+(r.subType?'/'+r.subType:'');c[k]=(c[k]||0)+1;}
    const keys=Object.keys(c).sort();$('feedTypes').textContent=keys.length?keys.map(k=>k+'（'+typeJa(k.split('/')[0])+'）'+c[k]+'件').join('、'):'データなし';
    const extra=records().filter(r=>!['BreastFeeding','Formula','ExpressedBreastMilk','Pumping','Vomiting','Weight','Sleep','WakeUp','Pee','Poop','Drink','Temperature'].includes(r.type)).slice(-5);
    if(extra.length)$('feedTypes').textContent+='　例：'+extra.map(r=>fmtHM(r.t)+' '+JSON.stringify(Object.assign({},r,{t:undefined,datetime:undefined,event_id:undefined}))).join(' / ');}
   lockBody();$('sheet').classList.add('open');$('sheet').scrollTop=0;
-}
-function updateMlNowNote(){
-  const v=Number($('sMlNow').value)||0;const link=$('sLink').checked;
-  let t='';
-  if(link&&KG){const k2=Math.round((KG+0.3)*100)/100;t='今の体重'+KG+'kgで'+v+'ml。体重が'+k2+'kgになると約'+round10(v*k2/KG)+'ml。体重はぴよログの記録かNotion「体重の記録」から。';}
-  else if(link)t='体重が未設定のため連動しない。';
-  else t='固定。体重が増えても自分で上げる。';
-  $('mlNowNote').textContent=t;
 }
 function parseWeights(text){
   const out=[];const by=new Date(S.birth+'T00:00:00').getFullYear();
@@ -1318,28 +1298,13 @@ function parseWeights(text){
 }
 function closeSettings(save){
   if(save){
-    const url=$('sFeed').value.trim();const prevUrl=S.feedUrl;const prevLink=S.linkWeight!==false;
+    const url=$('sFeed').value.trim();const prevUrl=S.feedUrl;
     if(url&&!/^https:\/\/feed\.piyolog\.com\/v1\/feed\//.test(url)){alert('フィードURLの形式が違う。https://feed.piyolog.com/v1/feed/… を貼る。');return;}
-    S.feedUrl=url;S.demo=$('sDemo').checked;S.linkWeight=$('sLink').checked;
-    const changed=[];
-    if($('sStd').checked){const d=ageDays(new Date());const before=S.feedOverride||'';
-     S.feedOverride=parseOverride(S.feedOverride).items.filter(o=>o.from>d).map(o=>o.from+' '+o.val).join('\n');
-     if(S.feedOverride!==before)changed.push('feedOverride');}
-    else{const d=ageDays(new Date());const cur=stageFor(d);let want=Number($('sMlNow').value);const n=slotCount(cur);
-     const capMl=floor10(dailyCap(d)/n);
-     let clamped=false;
-     if(want>capMl){alert('正常範囲外の値（'+want+'ml×'+n+'回＝'+(want*n)+'ml、上端は'+dailyCap(d)+'ml＝体重×'+perKgRange(d)[1]+'ml/kg）。正常範囲いっぱいの'+capMl+'mlで設定した。');want=capMl;clamped=true;}
-     const bi=baseInfo(d);
-     if(want>0&&(clamped||!bi.ov||want!==bi.ml)){ // 手動：今の段階の行を書き換え（無ければ追加）
-       const items=parseOverride(S.feedOverride).items.filter(o=>o.from!==Number(cur.from));
-       items.push({from:Number(cur.from),val:String(round10(want))});
-       S.feedOverride=items.sort((a,b)=>a.from-b.from).map(o=>o.from+' '+o.val).join('\n');changed.push('feedOverride');}}
-    if(S.linkWeight!==prevLink)changed.push('linkWeight');
+    S.feedUrl=url;S.demo=$('sDemo').checked;
     S.syncUrl=$('sSyncUrl').value.trim();S.syncPass=$('sSyncPass').value.trim();
     S.stageVersion=STAGE_VERSION;
     saveSettings();UI.autoKey='';
     $('sheet').classList.remove('open');unlockBody();fetchFeed(url!==prevUrl||S.demo);
-    if(syncOn()&&changed.length)pushSync(changed);
     return;
   }
   $('sheet').classList.remove('open');unlockBody();render();
