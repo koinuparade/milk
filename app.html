@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v52</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v54</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -1011,20 +1011,21 @@ function renderDaily(now){
   days.forEach((d,i)=>{if(d.age%7===0){sv+='<line x1="'+x(i).toFixed(1)+'" y1="'+pt+'" x2="'+x(i).toFixed(1)+'" y2="'+(H-pb)+'" stroke="var(--line)" stroke-width="0.5"/><text x="'+x(i).toFixed(1)+'" y="'+(H-pb+11)+'" font-size="8" text-anchor="middle" fill="var(--muted)">'+d.d.slice(5).replace('-','/')+'</text>';}});
   const line=(key,color,width,dash)=>{let pts=[],segs=[];days.forEach((d,i)=>{if(d.r&&d.d!==today){pts.push(x(i).toFixed(1)+','+y(key(d.r)).toFixed(1));}else{if(pts.length)segs.push(pts);pts=[];}});if(pts.length)segs.push(pts);
     return segs.map(pp=>'<polyline points="'+pp.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="'+width+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+' stroke-linejoin="round"/>').join('');};
-  sv+=line(r=>r.f+r.e,'var(--text)',2,'');
-  sv+=line(r=>r.f,'var(--papa)',1.2,'');
-  sv+=line(r=>r.e,'var(--ok)',1.2,'');
+  sv+='<g opacity="0.3">'+line(r=>r.f,'var(--papa)',1,'')+line(r=>r.e,'var(--ok)',1,'')+'</g>';
+  sv+=line(r=>r.f+r.e,'var(--text)',2.5,'');
+  days.forEach((d,i)=>{if(d.r&&d.d!==today)sv+='<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.r.f+d.r.e).toFixed(1)+'" r="2" fill="var(--text)"/>';});
   // 今日（途中）は白抜き点
   const ti=days.length-1,tr=days[ti].r;
   if(tr){sv+='<circle cx="'+x(ti).toFixed(1)+'" cy="'+y(tr.f+tr.e).toFixed(1)+'" r="3" fill="var(--bg)" stroke="var(--text)" stroke-width="1.5"/>';}
   // 最新確定日の値ラベル
   const lastDone=[...days].reverse().find(d=>d.r&&d.d!==today);
   if(lastDone){const i=days.indexOf(lastDone);sv+='<text x="'+(x(i)-4).toFixed(1)+'" y="'+(y(lastDone.r.f+lastDone.r.e)-5).toFixed(1)+'" font-size="9" font-weight="700" text-anchor="end" fill="var(--text)">'+(lastDone.r.f+lastDone.r.e)+'</text>';}
-  sv+='<text x="'+pl+'" y="'+(H-2)+'" font-size="8" fill="var(--muted)"><tspan fill="var(--text)">━ ミルク合計</tspan>　<tspan fill="var(--papa)">─ 粉ミルク</tspan>　<tspan fill="var(--ok)">─ 搾乳</tspan>　○ 今日（途中）</text>';
+  sv+='<text x="'+pl+'" y="'+(H-2)+'" font-size="8" fill="var(--muted)"><tspan fill="var(--text)" font-weight="700">━ ミルク合計（粉＋搾乳）</tspan>　<tspan opacity="0.5"><tspan fill="var(--papa)">─ 粉</tspan> <tspan fill="var(--ok)">─ 搾乳</tspan></tspan>　○ 今日（途中）</text>';
   sv+='</svg>';
   $('dlChart').innerHTML=sv;
   const wk=have.filter(x=>x.d!==today).slice(-7);const avg=k=>Math.round(wk.reduce((a,x)=>a+k(x.r),0)/Math.max(1,wk.length));
-  $('dlNote').textContent=(lastDone?'前日 '+lastDone.d.slice(5).replace('-','/')+'：合計'+(lastDone.r.f+lastDone.r.e)+'（粉ミルク'+lastDone.r.f+'・搾乳'+lastDone.r.e+'）、母乳'+lastDone.r.bc+'回'+lastDone.r.bm+'分。':'')+(tr?'今日ここまで：合計'+(tr.f+tr.e)+'。':'')+'直近7日平均：合計'+avg(r=>r.f+r.e)+'（粉ミルク'+avg(r=>r.f)+'・搾乳'+avg(r=>r.e)+'）。母乳は含まない。Notion「日別ログ」に蓄積。';
+  const warn=(syncOn()&&!DAILY.length)?'【Notionの日別ログを取得できていない。Cloudflareのworker.jsが新しい版か、表「おふみるく 日別ログ」に接続があるか確認】 ':'';
+  $('dlNote').textContent=warn+(lastDone?'前日 '+lastDone.d.slice(5).replace('-','/')+'：合計'+(lastDone.r.f+lastDone.r.e)+'（粉ミルク'+lastDone.r.f+'・搾乳'+lastDone.r.e+'）、母乳'+lastDone.r.bc+'回'+lastDone.r.bm+'分。':'')+(tr?'今日ここまで：合計'+(tr.f+tr.e)+'。':'')+'直近7日平均：合計'+avg(r=>r.f+r.e)+'（粉ミルク'+avg(r=>r.f)+'・搾乳'+avg(r=>r.e)+'）。母乳は含まない。Notion「日別ログ」に蓄積。';
 }
 /* ========== Notion 同期 ========== */
 let SYNCERR=[],SYNCSTAT='';
