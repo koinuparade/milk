@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v54</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v55</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -971,10 +971,10 @@ function accumulateDayLog(recs){
   for(const r of recs){
     if(!FEEDTYPES.has(r.type))continue;
     const d=dateKey(r.t);const id=String(r.event_id||(r.type+'@'+r.datetime));
-    const L=S.dayLog[d]||(S.dayLog[d]={f:0,e:0,bc:0,bm:0,ids:[]});
+    const L=S.dayLog[d]||(S.dayLog[d]={f:0,e:0,bc:0,bm:0,bml:0,ids:[]});if(L.bml==null)L.bml=0;
     if(L.ids.includes(id))continue;
     L.ids.push(id);
-    if(r.type==='Formula')L.f+=val(r)||0;else if(r.type==='ExpressedBreastMilk')L.e+=val(r)||0;else{L.bc+=1;L.bm+=bfMinutes(r);}
+    if(r.type==='Formula')L.f+=val(r)||0;else if(r.type==='ExpressedBreastMilk')L.e+=val(r)||0;else{L.bc+=1;const mn=bfMinutes(r);L.bm+=mn;L.bml+=Math.round(mn*Number(S.coef||0));} // 母乳mlは記録時点の係数で確定
     changed=true;DLCHANGED.add(d);
   }
   // 古い日の ids は捨てる（3日より前）。40日より前の日は削除
@@ -985,14 +985,14 @@ function accumulateDayLog(recs){
 async function pushDaily(){
   if(!syncOn())return;const dates=[...DLCHANGED];if(!dates.length)return;DLCHANGED.clear();
   const b0=new Date(S.birth+'T00:00:00');
-  const days=dates.filter(d=>S.dayLog[d]).map(d=>{const L=S.dayLog[d];return {d,f:L.f,e:L.e,bc:L.bc,bm:L.bm,age:Math.round((new Date(d+'T00:00:00')-b0)/86400000)};});
+  const days=dates.filter(d=>S.dayLog[d]).map(d=>{const L=S.dayLog[d];return {d,f:L.f,e:L.e,bc:L.bc,bm:L.bm,bml:L.bml||0,age:Math.round((new Date(d+'T00:00:00')-b0)/86400000)};});
   try{const r=await fetch(syncEndpoint().replace(/\/settings$/,'/daily'),{method:'POST',headers:{'X-Pass':S.syncPass,'Content-Type':'application/json'},body:JSON.stringify({days})});
     if(!r.ok){dates.forEach(d=>DLCHANGED.add(d));}}
   catch(e){dates.forEach(d=>DLCHANGED.add(d));}
 }
 function dailyMerged(){ // Notion と端末累積を日付ごとに max で合成
-  const m={};for(const r of DAILY){if(!r||!r.d)continue;m[r.d]={d:r.d,f:r.f||0,e:r.e||0,bc:r.bc||0,bm:r.bm||0,src:r.src||''};}
-  for(const d of Object.keys(S.dayLog||{})){const L=S.dayLog[d];const x=m[d]||(m[d]={d,f:0,e:0,bc:0,bm:0,src:'端末'});x.f=Math.max(x.f,L.f);x.e=Math.max(x.e,L.e);x.bc=Math.max(x.bc,L.bc);x.bm=Math.max(x.bm,L.bm);}
+  const m={};for(const r of DAILY){if(!r||!r.d)continue;m[r.d]={d:r.d,f:r.f||0,e:r.e||0,bc:r.bc||0,bm:r.bm||0,bml:r.bml||0,src:r.src||''};}
+  for(const d of Object.keys(S.dayLog||{})){const L=S.dayLog[d];const x=m[d]||(m[d]={d,f:0,e:0,bc:0,bm:0,bml:0,src:'端末'});x.f=Math.max(x.f,L.f);x.e=Math.max(x.e,L.e);x.bc=Math.max(x.bc,L.bc);x.bm=Math.max(x.bm,L.bm);x.bml=Math.max(x.bml,L.bml||0);}
   return Object.values(m).sort((a,b)=>a.d<b.d?-1:1);
 }
 function renderDaily(now){
@@ -1004,28 +1004,29 @@ function renderDaily(now){
   const have=days.filter(x=>x.r);
   if(!have.length){$('dlChart').innerHTML='';$('dlNote').textContent=syncOn()?'日別ログがまだない。Notionと同期後に表示。':'Notion同期を設定すると表示。';return;}
   const W=340,H=200,pl=34,pr=8,pt=10,pb=24;const n=days.length;
-  const maxMl=Math.max(200,Math.ceil(Math.max(...have.map(x=>x.r.f+x.r.e))/100)*100);
+  const tot=r=>r.f+r.e+(r.bml||0);
+  const maxMl=Math.max(200,Math.ceil(Math.max(...have.map(x=>tot(x.r)))/100)*100);
   const x=i=>pl+(n<=1?0:i/(n-1))*(W-pl-pr),y=v=>pt+(1-v/maxMl)*(H-pt-pb);
   let sv='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">';
   for(let v=0;v<=maxMl;v+=maxMl>=600?200:100){sv+='<line x1="'+pl+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="0.5"/><text x="'+(pl-3)+'" y="'+(y(v)+3).toFixed(1)+'" font-size="8" text-anchor="end" fill="var(--muted)">'+v+'</text>';}
   days.forEach((d,i)=>{if(d.age%7===0){sv+='<line x1="'+x(i).toFixed(1)+'" y1="'+pt+'" x2="'+x(i).toFixed(1)+'" y2="'+(H-pb)+'" stroke="var(--line)" stroke-width="0.5"/><text x="'+x(i).toFixed(1)+'" y="'+(H-pb+11)+'" font-size="8" text-anchor="middle" fill="var(--muted)">'+d.d.slice(5).replace('-','/')+'</text>';}});
   const line=(key,color,width,dash)=>{let pts=[],segs=[];days.forEach((d,i)=>{if(d.r&&d.d!==today){pts.push(x(i).toFixed(1)+','+y(key(d.r)).toFixed(1));}else{if(pts.length)segs.push(pts);pts=[];}});if(pts.length)segs.push(pts);
     return segs.map(pp=>'<polyline points="'+pp.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="'+width+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+' stroke-linejoin="round"/>').join('');};
-  sv+='<g opacity="0.3">'+line(r=>r.f,'var(--papa)',1,'')+line(r=>r.e,'var(--ok)',1,'')+'</g>';
-  sv+=line(r=>r.f+r.e,'var(--text)',2.5,'');
-  days.forEach((d,i)=>{if(d.r&&d.d!==today)sv+='<circle cx="'+x(i).toFixed(1)+'" cy="'+y(d.r.f+d.r.e).toFixed(1)+'" r="2" fill="var(--text)"/>';});
+  sv+='<g opacity="0.3">'+line(r=>r.f+r.e,'var(--papa)',1,'')+line(r=>r.bml||0,'var(--mama)',1,'')+'</g>';
+  sv+=line(tot,'var(--text)',2.5,'');
+  days.forEach((d,i)=>{if(d.r&&d.d!==today)sv+='<circle cx="'+x(i).toFixed(1)+'" cy="'+y(tot(d.r)).toFixed(1)+'" r="2" fill="var(--text)"/>';});
   // 今日（途中）は白抜き点
   const ti=days.length-1,tr=days[ti].r;
-  if(tr){sv+='<circle cx="'+x(ti).toFixed(1)+'" cy="'+y(tr.f+tr.e).toFixed(1)+'" r="3" fill="var(--bg)" stroke="var(--text)" stroke-width="1.5"/>';}
+  if(tr){sv+='<circle cx="'+x(ti).toFixed(1)+'" cy="'+y(tot(tr)).toFixed(1)+'" r="3" fill="var(--bg)" stroke="var(--text)" stroke-width="1.5"/>';}
   // 最新確定日の値ラベル
   const lastDone=[...days].reverse().find(d=>d.r&&d.d!==today);
-  if(lastDone){const i=days.indexOf(lastDone);sv+='<text x="'+(x(i)-4).toFixed(1)+'" y="'+(y(lastDone.r.f+lastDone.r.e)-5).toFixed(1)+'" font-size="9" font-weight="700" text-anchor="end" fill="var(--text)">'+(lastDone.r.f+lastDone.r.e)+'</text>';}
-  sv+='<text x="'+pl+'" y="'+(H-2)+'" font-size="8" fill="var(--muted)"><tspan fill="var(--text)" font-weight="700">━ ミルク合計（粉＋搾乳）</tspan>　<tspan opacity="0.5"><tspan fill="var(--papa)">─ 粉</tspan> <tspan fill="var(--ok)">─ 搾乳</tspan></tspan>　○ 今日（途中）</text>';
+  if(lastDone){const i=days.indexOf(lastDone);sv+='<text x="'+(x(i)-4).toFixed(1)+'" y="'+(y(tot(lastDone.r))-5).toFixed(1)+'" font-size="9" font-weight="700" text-anchor="end" fill="var(--text)">'+tot(lastDone.r)+'</text>';}
+  sv+='<text x="'+pl+'" y="'+(H-2)+'" font-size="8" fill="var(--muted)"><tspan fill="var(--text)" font-weight="700">━ 総量（粉＋搾乳＋母乳換算）</tspan>　<tspan opacity="0.5"><tspan fill="var(--papa)">─ 粉＋搾乳</tspan> <tspan fill="var(--mama)">─ 母乳換算</tspan></tspan>　○ 今日</text>';
   sv+='</svg>';
   $('dlChart').innerHTML=sv;
   const wk=have.filter(x=>x.d!==today).slice(-7);const avg=k=>Math.round(wk.reduce((a,x)=>a+k(x.r),0)/Math.max(1,wk.length));
   const warn=(syncOn()&&!DAILY.length)?'【Notionの日別ログを取得できていない。Cloudflareのworker.jsが新しい版か、表「おふみるく 日別ログ」に接続があるか確認】 ':'';
-  $('dlNote').textContent=warn+(lastDone?'前日 '+lastDone.d.slice(5).replace('-','/')+'：合計'+(lastDone.r.f+lastDone.r.e)+'（粉ミルク'+lastDone.r.f+'・搾乳'+lastDone.r.e+'）、母乳'+lastDone.r.bc+'回'+lastDone.r.bm+'分。':'')+(tr?'今日ここまで：合計'+(tr.f+tr.e)+'。':'')+'直近7日平均：合計'+avg(r=>r.f+r.e)+'（粉ミルク'+avg(r=>r.f)+'・搾乳'+avg(r=>r.e)+'）。母乳は含まない。Notion「日別ログ」に蓄積。';
+  $('dlNote').textContent=warn+(lastDone?'前日 '+lastDone.d.slice(5).replace('-','/')+'：総量'+tot(lastDone.r)+'（粉ミルク'+lastDone.r.f+'・搾乳'+lastDone.r.e+'・母乳'+lastDone.r.bc+'回'+lastDone.r.bm+'分≒'+(lastDone.r.bml||0)+'ml）。':'')+(tr?'今日ここまで：'+tot(tr)+'。':'')+'直近7日平均：総量'+avg(tot)+'。母乳mlは記録時点の「母乳1分≒ミルク ml」（今'+S.coef+'）で換算。11/14までは2.5、11/15・16は4で換算済み。Notion「日別ログ」に蓄積。';
 }
 /* ========== Notion 同期 ========== */
 let SYNCERR=[],SYNCSTAT='';
