@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v51</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v52</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -996,28 +996,36 @@ function dailyMerged(){ // Notion と端末累積を日付ごとに max で合�
   return Object.values(m).sort((a,b)=>a.d<b.d?-1:1);
 }
 function renderDaily(now){
-  const today=dateKey(now);const all=dailyMerged().filter(x=>x.d<today);
-  const N=28;const rows=all.slice(-N);
-  $('dlLabel').textContent=rows.length?rows[0].d.slice(5).replace('-','/')+'〜'+rows[rows.length-1].d.slice(5).replace('-','/'):'';
-  if(!rows.length){$('dlChart').innerHTML='';$('dlNote').textContent=syncOn()?'日別ログがまだない。Notionと同期後に表示。':'Notion同期を設定すると表示。';return;}
-  const W=340,H=190,pl=34,pr=30,pt=10,pb=26;const n=rows.length;const bw=(W-pl-pr)/n;
-  const maxMl=Math.max(100,Math.ceil(Math.max(...rows.map(r=>r.f+r.e))/100)*100);const maxMin=Math.max(60,Math.ceil(Math.max(...rows.map(r=>r.bm))/30)*30);
-  const y=v=>pt+(1-v/maxMl)*(H-pt-pb),y2=v=>pt+(1-v/maxMin)*(H-pt-pb),x=i=>pl+i*bw;
+  const today=dateKey(now);const m={};for(const r of dailyMerged())m[r.d]=r;
+  // 誕生日から今日まで全日（記録なしは欠損）
+  const b0=new Date(S.birth+'T00:00:00');const days=[];
+  for(let t=new Date(b0);dateKey(t)<=today;t.setDate(t.getDate()+1)){const d=dateKey(t);days.push({d,age:Math.round((t-b0)/86400000),r:m[d]||null});}
+  $('dlLabel').textContent=S.birth.slice(5).replace('-','/')+'〜今日';
+  const have=days.filter(x=>x.r);
+  if(!have.length){$('dlChart').innerHTML='';$('dlNote').textContent=syncOn()?'日別ログがまだない。Notionと同期後に表示。':'Notion同期を設定すると表示。';return;}
+  const W=340,H=200,pl=34,pr=8,pt=10,pb=24;const n=days.length;
+  const maxMl=Math.max(200,Math.ceil(Math.max(...have.map(x=>x.r.f+x.r.e))/100)*100);
+  const x=i=>pl+(n<=1?0:i/(n-1))*(W-pl-pr),y=v=>pt+(1-v/maxMl)*(H-pt-pb);
   let sv='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">';
   for(let v=0;v<=maxMl;v+=maxMl>=600?200:100){sv+='<line x1="'+pl+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="0.5"/><text x="'+(pl-3)+'" y="'+(y(v)+3).toFixed(1)+'" font-size="8" text-anchor="end" fill="var(--muted)">'+v+'</text>';}
-  for(let v=0;v<=maxMin;v+=maxMin>=120?60:30){sv+='<text x="'+(W-pr+3)+'" y="'+(y2(v)+3).toFixed(1)+'" font-size="8" fill="var(--mama)">'+v+'</text>';}
-  rows.forEach((r,i)=>{const bx=x(i)+bw*0.15,w=bw*0.7;
-    sv+='<rect x="'+bx.toFixed(1)+'" y="'+y(r.f).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+(y(0)-y(r.f)).toFixed(1)+'" fill="var(--papa)" opacity="0.8"/>';
-    sv+='<rect x="'+bx.toFixed(1)+'" y="'+y(r.f+r.e).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+(y(r.f)-y(r.f+r.e)).toFixed(1)+'" fill="var(--ok)" opacity="0.8"/>';
-    const dd=new Date(r.d+'T00:00:00');if(dd.getDay()===1||n<=10)sv+='<text x="'+(x(i)+bw/2).toFixed(1)+'" y="'+(H-pb+11)+'" font-size="8" text-anchor="middle" fill="var(--muted)">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</text>';});
-  sv+='<polyline points="'+rows.map((r,i)=>(x(i)+bw/2).toFixed(1)+','+y2(r.bm).toFixed(1)).join(' ')+'" fill="none" stroke="var(--mama)" stroke-width="1.5" stroke-dasharray="3,2"/>';
-  sv+='<text x="'+pl+'" y="'+(H-2)+'" font-size="8" fill="var(--muted)"><tspan fill="var(--papa)">■粉ミルク</tspan> <tspan fill="var(--ok)">■搾乳</tspan> ml（左軸）　<tspan fill="var(--mama)">- - 母乳 分（右軸）</tspan></text>';
+  days.forEach((d,i)=>{if(d.age%7===0){sv+='<line x1="'+x(i).toFixed(1)+'" y1="'+pt+'" x2="'+x(i).toFixed(1)+'" y2="'+(H-pb)+'" stroke="var(--line)" stroke-width="0.5"/><text x="'+x(i).toFixed(1)+'" y="'+(H-pb+11)+'" font-size="8" text-anchor="middle" fill="var(--muted)">'+d.d.slice(5).replace('-','/')+'</text>';}});
+  const line=(key,color,width,dash)=>{let pts=[],segs=[];days.forEach((d,i)=>{if(d.r&&d.d!==today){pts.push(x(i).toFixed(1)+','+y(key(d.r)).toFixed(1));}else{if(pts.length)segs.push(pts);pts=[];}});if(pts.length)segs.push(pts);
+    return segs.map(pp=>'<polyline points="'+pp.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="'+width+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+' stroke-linejoin="round"/>').join('');};
+  sv+=line(r=>r.f+r.e,'var(--text)',2,'');
+  sv+=line(r=>r.f,'var(--papa)',1.2,'');
+  sv+=line(r=>r.e,'var(--ok)',1.2,'');
+  // 今日（途中）は白抜き点
+  const ti=days.length-1,tr=days[ti].r;
+  if(tr){sv+='<circle cx="'+x(ti).toFixed(1)+'" cy="'+y(tr.f+tr.e).toFixed(1)+'" r="3" fill="var(--bg)" stroke="var(--text)" stroke-width="1.5"/>';}
+  // 最新確定日の値ラベル
+  const lastDone=[...days].reverse().find(d=>d.r&&d.d!==today);
+  if(lastDone){const i=days.indexOf(lastDone);sv+='<text x="'+(x(i)-4).toFixed(1)+'" y="'+(y(lastDone.r.f+lastDone.r.e)-5).toFixed(1)+'" font-size="9" font-weight="700" text-anchor="end" fill="var(--text)">'+(lastDone.r.f+lastDone.r.e)+'</text>';}
+  sv+='<text x="'+pl+'" y="'+(H-2)+'" font-size="8" fill="var(--muted)"><tspan fill="var(--text)">━ ミルク合計</tspan>　<tspan fill="var(--papa)">─ 粉ミルク</tspan>　<tspan fill="var(--ok)">─ 搾乳</tspan>　○ 今日（途中）</text>';
   sv+='</svg>';
   $('dlChart').innerHTML=sv;
-  const last=rows[rows.length-1];const wk=rows.slice(-7);const avg=k=>Math.round(wk.reduce((a,r)=>a+r[k],0)/wk.length);
-  $('dlNote').textContent='前日 '+last.d.slice(5).replace('-','/')+'：粉ミルク'+last.f+'・搾乳'+last.e+'・母乳'+last.bc+'回'+last.bm+'分。直近7日平均：粉ミルク'+avg('f')+'・搾乳'+avg('e')+'・母乳'+avg('bm')+'分/日。Notion「日別ログ」に蓄積（10/21〜11/16はぴよログPDFから取込。以後はアプリが開かれた端末が見たフィード分を加算。1日1回は開く）。';
+  const wk=have.filter(x=>x.d!==today).slice(-7);const avg=k=>Math.round(wk.reduce((a,x)=>a+k(x.r),0)/Math.max(1,wk.length));
+  $('dlNote').textContent=(lastDone?'前日 '+lastDone.d.slice(5).replace('-','/')+'：合計'+(lastDone.r.f+lastDone.r.e)+'（粉ミルク'+lastDone.r.f+'・搾乳'+lastDone.r.e+'）、母乳'+lastDone.r.bc+'回'+lastDone.r.bm+'分。':'')+(tr?'今日ここまで：合計'+(tr.f+tr.e)+'。':'')+'直近7日平均：合計'+avg(r=>r.f+r.e)+'（粉ミルク'+avg(r=>r.f)+'・搾乳'+avg(r=>r.e)+'）。母乳は含まない。Notion「日別ログ」に蓄積。';
 }
-
 /* ========== Notion 同期 ========== */
 let SYNCERR=[],SYNCSTAT='';
 const nm=(lo,hi)=>v=>{const n=Number(String(v).trim());if(!isFinite(n)||n<lo||n>hi)throw 0;return n;};
