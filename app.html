@@ -148,7 +148,7 @@ table.st tr.cur td{background:var(--accent-soft)}
 <body>
 <header>
   <div>
-    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v50</span></div>
+    <div class="t" id="hTitle">おふみるく <span class="muted" style="font-weight:400;font-size:11px">v51</span></div>
     <div class="s" id="hSub"></div>
   </div>
   <div style="display:flex;gap:6px">
@@ -258,6 +258,12 @@ table.st tr.cur td{background:var(--accent-soft)}
   </div>
 
   <div class="card">
+    <div class="row"><h2>日別ミルク</h2><span class="muted" id="dlLabel"></span></div>
+    <div id="dlChart"></div>
+    <div class="note" id="dlNote"></div>
+  </div>
+
+  <div class="card">
     <div class="row"><h2>1日量の目安</h2><span class="muted" id="stdLabel"></span></div>
     <div id="stdTable"></div>
     <div class="note" id="stdNote"></div>
@@ -288,7 +294,7 @@ table.st tr.cur td{background:var(--accent-soft)}
   <label>合言葉</label>
   <input type="text" id="sSyncPass" autocapitalize="off" autocorrect="off" spellcheck="false">
   <div class="note" id="syncNote">この端末内にのみ保存。設定するとNotion「おふみるく 設定」の値を起動・更新時に取り込み、この画面で保存した内容をNotionに書き戻す。</div>
-  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">設定を開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8159bc5efcc56c31187f" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">スケジュールを開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a81e9a3e7c2625fbb8be4" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">週間タスクを開く</a></div>
+  <div class="actions"><button class="btn sm" onclick="syncNowBtn()">今すぐNotionから取得</button><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8197bd3cca973fc1f69e" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">設定を開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a8159bc5efcc56c31187f" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">スケジュールを開く</a><a class="btn sm" href="https://www.notion.so/419e8b42ce8a81e9a3e7c2625fbb8be4" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">週間タスクを開く</a><a class="btn sm" href="https://www.notion.so/41be8b42ce8a8196a3c1c1992c7d1756" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">日別ログを開く</a></div>
   <div class="note">設定はNotion「おふみるく 設定」、シフトと毎日のやることはNotion「おふみるく スケジュール」（30分刻み。担当列＝シフト）、曜日ごとのことは「おふみるく 週間タスク」で編集する。Notionで変えた値はアプリの起動・更新時に反映。</div>
   <div class="note" id="syncStat"></div>
   <div class="note" id="mlStatus"></div>
@@ -358,6 +364,7 @@ const DEFAULTS={
   feedOverride:'', // 文乃の1回量 1行「日齢〜 ml」
   slotsOverride:'', // 定刻の変更 1行「日齢〜 時刻リスト」
   syncUrl:'https://ofumi-sync.tamyoshi1229-nvenetia.workers.dev', syncPass:'', syncAt:'', // Notion同期。合言葉とフィードURLは端末のみ
+  dayLog:{}, // 日別の累積 {date:{f,e,bc,bm,ids:[event_id]}}（この端末がフィードで見た分）
   wkg:null, wdate:'',
   weights:[{d:'2026-10-20',kg:3.22,src:'birth'}], // 体重履歴 {d:'YYYY-MM-DD',kg,src:birth|piyolog|manual}
 };
@@ -899,6 +906,7 @@ function render(){
       '<div class="note">順番はぴよログの記録から機械的に並べた目安。泣き方・顔色・体の様子はあなたが見て判断する。</div>';
     if($('cryBox')&&!$('cryBox').classList.contains('hidden'))$('cryBox').innerHTML=CRYHTML;
   }
+  accumulateDayLog(recs);
   const gi=growthInfo(days,{daily:bi.daily,cap:cap,tTotal,high});
   let tdn=[];
   if(gi.level==='up'||gi.level==='see'||gi.level==='down')tdn.push('成長曲線：'+gi.short);
@@ -920,6 +928,7 @@ function render(){
   $('tdNote').textContent=tdn.join(' ');
   renderTasks(now,recs);
   renderGrowth(gi,days);
+  renderDaily(now);
   renderStdTable(days);
 
   // タイムライン
@@ -950,6 +959,63 @@ function renderStdTable(days){
   }).join('');
   $('stdTable').innerHTML='<table class="st" style="font-size:12px"><thead><tr><th>日齢</th><th>標準 1日→1回</th><th>体重換算 1回</th><th>文乃 1回</th></tr></thead><tbody>'+rows+'</tbody></table>';
   $('stdNote').textContent='標準＝明治ほほえみ・グリコ アイクレオ・たまひよ・京都市の1日量の中央値（基準体重での量）。1回量＝1日量÷回数。実際にあげる量は推奨計算のうえ10ml単位に丸める。体重換算＝標準×最新体重÷基準体重（今の段階のみ表示）。「継続」＝前の段階で決めた値がそのまま使われる。文乃＝⚙で決めた値。実際に使う1回量は、文乃設定があればそれ、なければ体重換算。どちらも正常範囲の上端（体重×'+perKgRange(days)[1]+'ml/kg、最大960）で頭打ち。生後0〜7日は日数×10ml。';
+}
+
+/* ========== 日別ログ（Notion「日別ログ」＋この端末の累積） ========== */
+let DAILY=[]; // Notionから取得 [{d,f,e,bc,bm,age,src}]
+let DLPUSH=null;const DLCHANGED=new Set();
+function dateKey(t){return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate());}
+function accumulateDayLog(recs){
+  if(!S.dayLog||typeof S.dayLog!=='object')S.dayLog={};
+  let changed=false;const today=dateKey(new Date());
+  for(const r of recs){
+    if(!FEEDTYPES.has(r.type))continue;
+    const d=dateKey(r.t);const id=String(r.event_id||(r.type+'@'+r.datetime));
+    const L=S.dayLog[d]||(S.dayLog[d]={f:0,e:0,bc:0,bm:0,ids:[]});
+    if(L.ids.includes(id))continue;
+    L.ids.push(id);
+    if(r.type==='Formula')L.f+=val(r)||0;else if(r.type==='ExpressedBreastMilk')L.e+=val(r)||0;else{L.bc+=1;L.bm+=bfMinutes(r);}
+    changed=true;DLCHANGED.add(d);
+  }
+  // 古い日の ids は捨てる（3日より前）。40日より前の日は削除
+  const cut3=dateKey(new Date(Date.now()-3*86400000)),cut40=dateKey(new Date(Date.now()-40*86400000));
+  for(const d of Object.keys(S.dayLog)){if(d<cut40){delete S.dayLog[d];continue;}if(d<cut3&&S.dayLog[d].ids.length){S.dayLog[d].ids=[];}}
+  if(changed){saveSettings();if(syncOn()&&S.syncAt){clearTimeout(DLPUSH);DLPUSH=setTimeout(pushDaily,4000);}}
+}
+async function pushDaily(){
+  if(!syncOn())return;const dates=[...DLCHANGED];if(!dates.length)return;DLCHANGED.clear();
+  const b0=new Date(S.birth+'T00:00:00');
+  const days=dates.filter(d=>S.dayLog[d]).map(d=>{const L=S.dayLog[d];return {d,f:L.f,e:L.e,bc:L.bc,bm:L.bm,age:Math.round((new Date(d+'T00:00:00')-b0)/86400000)};});
+  try{const r=await fetch(syncEndpoint().replace(/\/settings$/,'/daily'),{method:'POST',headers:{'X-Pass':S.syncPass,'Content-Type':'application/json'},body:JSON.stringify({days})});
+    if(!r.ok){dates.forEach(d=>DLCHANGED.add(d));}}
+  catch(e){dates.forEach(d=>DLCHANGED.add(d));}
+}
+function dailyMerged(){ // Notion と端末累積を日付ごとに max で合成
+  const m={};for(const r of DAILY){if(!r||!r.d)continue;m[r.d]={d:r.d,f:r.f||0,e:r.e||0,bc:r.bc||0,bm:r.bm||0,src:r.src||''};}
+  for(const d of Object.keys(S.dayLog||{})){const L=S.dayLog[d];const x=m[d]||(m[d]={d,f:0,e:0,bc:0,bm:0,src:'端末'});x.f=Math.max(x.f,L.f);x.e=Math.max(x.e,L.e);x.bc=Math.max(x.bc,L.bc);x.bm=Math.max(x.bm,L.bm);}
+  return Object.values(m).sort((a,b)=>a.d<b.d?-1:1);
+}
+function renderDaily(now){
+  const today=dateKey(now);const all=dailyMerged().filter(x=>x.d<today);
+  const N=28;const rows=all.slice(-N);
+  $('dlLabel').textContent=rows.length?rows[0].d.slice(5).replace('-','/')+'〜'+rows[rows.length-1].d.slice(5).replace('-','/'):'';
+  if(!rows.length){$('dlChart').innerHTML='';$('dlNote').textContent=syncOn()?'日別ログがまだない。Notionと同期後に表示。':'Notion同期を設定すると表示。';return;}
+  const W=340,H=190,pl=34,pr=30,pt=10,pb=26;const n=rows.length;const bw=(W-pl-pr)/n;
+  const maxMl=Math.max(100,Math.ceil(Math.max(...rows.map(r=>r.f+r.e))/100)*100);const maxMin=Math.max(60,Math.ceil(Math.max(...rows.map(r=>r.bm))/30)*30);
+  const y=v=>pt+(1-v/maxMl)*(H-pt-pb),y2=v=>pt+(1-v/maxMin)*(H-pt-pb),x=i=>pl+i*bw;
+  let sv='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">';
+  for(let v=0;v<=maxMl;v+=maxMl>=600?200:100){sv+='<line x1="'+pl+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="0.5"/><text x="'+(pl-3)+'" y="'+(y(v)+3).toFixed(1)+'" font-size="8" text-anchor="end" fill="var(--muted)">'+v+'</text>';}
+  for(let v=0;v<=maxMin;v+=maxMin>=120?60:30){sv+='<text x="'+(W-pr+3)+'" y="'+(y2(v)+3).toFixed(1)+'" font-size="8" fill="var(--mama)">'+v+'</text>';}
+  rows.forEach((r,i)=>{const bx=x(i)+bw*0.15,w=bw*0.7;
+    sv+='<rect x="'+bx.toFixed(1)+'" y="'+y(r.f).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+(y(0)-y(r.f)).toFixed(1)+'" fill="var(--papa)" opacity="0.8"/>';
+    sv+='<rect x="'+bx.toFixed(1)+'" y="'+y(r.f+r.e).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+(y(r.f)-y(r.f+r.e)).toFixed(1)+'" fill="var(--ok)" opacity="0.8"/>';
+    const dd=new Date(r.d+'T00:00:00');if(dd.getDay()===1||n<=10)sv+='<text x="'+(x(i)+bw/2).toFixed(1)+'" y="'+(H-pb+11)+'" font-size="8" text-anchor="middle" fill="var(--muted)">'+(dd.getMonth()+1)+'/'+dd.getDate()+'</text>';});
+  sv+='<polyline points="'+rows.map((r,i)=>(x(i)+bw/2).toFixed(1)+','+y2(r.bm).toFixed(1)).join(' ')+'" fill="none" stroke="var(--mama)" stroke-width="1.5" stroke-dasharray="3,2"/>';
+  sv+='<text x="'+pl+'" y="'+(H-2)+'" font-size="8" fill="var(--muted)"><tspan fill="var(--papa)">■粉ミルク</tspan> <tspan fill="var(--ok)">■搾乳</tspan> ml（左軸）　<tspan fill="var(--mama)">- - 母乳 分（右軸）</tspan></text>';
+  sv+='</svg>';
+  $('dlChart').innerHTML=sv;
+  const last=rows[rows.length-1];const wk=rows.slice(-7);const avg=k=>Math.round(wk.reduce((a,r)=>a+r[k],0)/wk.length);
+  $('dlNote').textContent='前日 '+last.d.slice(5).replace('-','/')+'：粉ミルク'+last.f+'・搾乳'+last.e+'・母乳'+last.bc+'回'+last.bm+'分。直近7日平均：粉ミルク'+avg('f')+'・搾乳'+avg('e')+'・母乳'+avg('bm')+'分/日。Notion「日別ログ」に蓄積（10/21〜11/16はぴよログPDFから取込。以後はアプリが開かれた端末が見たフィード分を加算。1日1回は開く）。';
 }
 
 /* ========== Notion 同期 ========== */
@@ -1017,6 +1083,7 @@ async function pullSync(){
       try{f.set(row.value);}catch(e){errs.push(f.label);}}
     if(d.schedule&&Array.isArray(d.schedule))applyGrid(d.schedule,Array.isArray(d.weekly)?d.weekly:[]);else if(d.schedule&&d.schedule.error)errs.push('スケジュール表（'+d.schedule.error.slice(0,40)+'）');
     if(d.weekly&&d.weekly.error)errs.push('週間タスク表（'+d.weekly.error.slice(0,40)+'）');
+    if(Array.isArray(d.daily))DAILY=d.daily;else if(d.daily&&d.daily.error)errs.push('日別ログ表（'+d.daily.error.slice(0,40)+'）');
     SYNCERR=errs;S.syncAt=d.edited||new Date().toISOString();
     if(migrate.length)pushSync(migrate);
     if(JSON.stringify(S)!==snap){saveSettings();UI.autoKey='';}
